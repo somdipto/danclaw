@@ -17,7 +17,7 @@ DanClaw is a mobile-first AI agent deployment platform that enables users to dep
 ```
 danclaw/
 ├── docs/                  # Documentation
-│   ├── ARCHITECTURE.md    # System architecture
+│   ├── ARCHITECTURE.md    # System architecture (InsForge.dev)
 │   ├── PRD.md            # Product requirements
 │   ├── UIUX.md           # UI/UX design
 │   ├── ROADMAP.md        # Development roadmap
@@ -30,9 +30,9 @@ danclaw/
 ├── packages/
 │   ├── shared/           # Shared logic (80% of code)
 │   ├── ui/               # Shared UI components
-│   └── api/              # Backend (GCP Cloud Run)
+│   └── api/              # Backend (InsForge Functions)
 ├── infra/
-│   ├── gcp/              # GCP infrastructure
+│   ├── insforge/         # InsForge.dev configuration
 │   └── docker/           # Docker configurations
 └── .github/
     └── workflows/        # CI/CD pipelines
@@ -61,12 +61,25 @@ cd apps/web && pnpm dev
 |-------|------------|
 | Mobile | Expo SDK 52 |
 | Web | Next.js 14+ |
-| Auth | Supabase |
-| Database | Supabase PostgreSQL |
-| Backend | GCP Cloud Run |
+| Backend | InsForge.dev (DB + Auth + Storage + Functions + Deploy) |
 | Agent Runtime | SwarmClaw + Paperclip |
 | AI Models | OpenRouter |
 | Billing | RevenueCat |
+
+## Why InsForge.dev?
+
+| Feature | Supabase + GCP | InsForge.dev |
+|---------|----------------|--------------|
+| DB | Supabase | ✅ Built-in |
+| Auth | Supabase | ✅ Built-in |
+| Storage | Supabase | ✅ Built-in |
+| Functions | GCP Cloud Run | ✅ Built-in |
+| Realtime | Supabase | ✅ Built-in |
+| Deployment | GCP Cloud Run | ✅ Built-in |
+| AI Integration | Manual | ✅ Built-in |
+| MCP Support | ❌ | ✅ Native |
+| Cost | 2 services | 1 service |
+| Complexity | High | Low |
 
 ## License
 

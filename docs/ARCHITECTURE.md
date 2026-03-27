@@ -1,8 +1,10 @@
-# DanClaw - System Architecture
+# DanClaw - System Architecture (InsForge.dev)
 
 ## Overview
 
 DanClaw is a mobile-first AI agent deployment platform. Users deploy AI agents with one click, manage them via mobile app or web dashboard, and chat in real-time.
+
+**Backend: InsForge.dev** - One platform for everything (DB + Auth + Storage + Functions + Deploy)
 
 ## High-Level Architecture
 
@@ -17,37 +19,89 @@ DanClaw is a mobile-first AI agent deployment platform. Users deploy AI agents w
 │  │ (Expo)      │    │ (Next.js)   │    │ (Marketing)     │ │
 │  └─────────────┘    └─────────────┘    └─────────────────┘ │
 ├─────────────────────────────────────────────────────────────┤
-│                      API GATEWAY                            │
-│                  (REST + WebSocket)                         │
+│                      INSFORGE.DEV                           │
+│            (Everything in one platform)                     │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐ │
-│  │ Auth        │    │ Deploy      │    │ Chat            │ │
-│  │ Service     │    │ Service     │    │ Service         │ │
-│  └─────────────┘    └─────────────┘    └─────────────────┘ │
-├─────────────────────────────────────────────────────────────┤
-│                      INFRASTRUCTURE                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐ │
-│  │ Supabase    │    │ GCP Cloud   │    │ OpenRouter      │ │
-│  │ (Auth+DB)   │    │ Run         │    │ (AI Models)     │ │
+│  │ PostgreSQL  │    │ Auth (OAuth)│    │ Cloud Storage   │ │
+│  │ Database    │    │             │    │                 │ │
 │  └─────────────┘    └─────────────┘    └─────────────────┘ │
 │                                                             │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐ │
-│  │ RevenueCat  │    │ SwarmClaw   │    │ Paperclip       │ │
-│  │ (Billing)   │    │ (Agents)    │    │ (Orchestration) │ │
+│  │ Functions   │    │ Realtime    │    │ AI Integration  │ │
+│  │ (Serverless)│    │             │    │                 │ │
+│  └─────────────┘    └─────────────┘    └─────────────────┘ │
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐                       │
+│  │ Deployment  │    │ MCP Support │                       │
+│  │ (Containers)│    │ (Native)    │                       │
+│  └─────────────┘    └─────────────┘                       │
+├─────────────────────────────────────────────────────────────┤
+│                      AGENT RUNTIME                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐ │
+│  │ SwarmClaw   │    │ Paperclip   │    │ OpenRouter      │ │
+│  │ (Agents)    │    │ (Orchest.)  │    │ (AI Models)     │ │
 │  └─────────────┘    └─────────────┘    └─────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## Why InsForge.dev?
+
+| Feature | Supabase + GCP | InsForge.dev |
+|---------|----------------|--------------|
+| DB | Supabase | ✅ Built-in |
+| Auth | Supabase | ✅ Built-in |
+| Storage | Supabase | ✅ Built-in |
+| Functions | GCP Cloud Run | ✅ Built-in |
+| Realtime | Supabase | ✅ Built-in |
+| Deployment | GCP Cloud Run | ✅ Built-in |
+| AI Integration | Manual | ✅ Built-in |
+| MCP Support | ❌ | ✅ Native |
+| Cost | 2 services | 1 service |
+| Complexity | High | Low |
+
+## Components
+
+### 1. InsForge.dev (Everything)
+
+```
+InsForge.dev provides:
+├── PostgreSQL Database (user data, deployments)
+├── Auth (Google/Apple OAuth)
+├── Cloud Storage (files, documents)
+├── Functions (API endpoints, business logic)
+├── Realtime (WebSocket, live updates)
+├── AI Integration (model connections)
+├── Deployment (container management)
+└── MCP Support (native AI agent integration)
+```
+
+### 2. Mobile App (Expo SDK 52)
+- iOS + Android native apps
+- Zustand state management
+- TanStack Query for server state
+- React Navigation for routing
+
+### 3. Web App (Next.js 14+)
+- Server-side rendering
+- SEO optimization
+- Same business logic as mobile
+
+### 4. Agent Runtime
+- SwarmClaw (multi-agent)
+- Paperclip (orchestration)
+- OpenRouter (AI models)
 
 ## Data Flow
 
 ### Deploy Flow (60 seconds)
 ```
 1. User taps "Deploy" (App)
-2. OAuth → Supabase Auth
-3. API → GCP Cloud Run (create container)
+2. OAuth → InsForge Auth
+3. InsForge Functions → Create container
 4. Container starts with SwarmClaw
 5. OpenRouter token injected
 6. Health check passes
@@ -59,49 +113,15 @@ DanClaw is a mobile-first AI agent deployment platform. Users deploy AI agents w
 ### Chat Flow
 ```
 1. User sends message (App)
-2. WebSocket → API Gateway
-3. API → GCP Cloud Run container
+2. WebSocket → InsForge Realtime
+3. InsForge Functions → Container
 4. Container → SwarmClaw
 5. SwarmClaw → OpenRouter
-6. Response → API Gateway
+6. Response → InsForge Realtime
 7. WebSocket → User
 ```
 
-## Components
-
-### 1. Mobile App (Expo SDK 52)
-- iOS + Android native apps
-- Zustand state management
-- TanStack Query for server state
-- React Navigation for routing
-
-### 2. Web App (Next.js 14+)
-- Server-side rendering
-- SEO optimization
-- Same business logic as mobile
-
-### 3. Shared Packages
-- API client
-- UI components
-- Types and constants
-
-### 4. API Gateway
-- REST endpoints
-- WebSocket connections
-- Authentication
-- Rate limiting
-
-### 5. Deploy Service
-- GCP Cloud Run API
-- Container lifecycle
-- Health checks
-
-### 6. Chat Service
-- WebSocket server
-- Message routing
-- Real-time updates
-
-## Database Schema
+## Database Schema (InsForge PostgreSQL)
 
 ### Users Table
 ```sql
@@ -140,7 +160,7 @@ CREATE TABLE messages (
 );
 ```
 
-## API Endpoints
+## API Endpoints (InsForge Functions)
 
 ### Authentication
 - `POST /api/auth/login` - Login
@@ -166,12 +186,12 @@ CREATE TABLE messages (
 ## Security
 
 ### Authentication
-- Google OAuth via Supabase
+- Google OAuth via InsForge Auth
 - Apple Sign In (iOS)
 - JWT tokens
 
 ### Authorization
-- Row Level Security (RLS) in Supabase
+- Row Level Security (RLS) in InsForge PostgreSQL
 - API key authentication for containers
 - Rate limiting per tier
 
@@ -195,3 +215,13 @@ CREATE TABLE messages (
 - Container errors (>5%)
 - API latency (>500ms)
 - Free tier abuse
+
+## MCP Integration (Native)
+
+InsForge.dev has native MCP support:
+- AI agents can directly interact with database
+- Real-time data synchronization
+- Structured workflows
+- Better performance (1.6x faster, 30% fewer tokens)
+
+This is a HUGE advantage for DanClaw - our agents can work directly with the backend!

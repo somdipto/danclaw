@@ -1,22 +1,21 @@
-# DanClaw - Security Model
+# DanClaw - Security Model (InsForge.dev)
 
 ## Overview
 
-DanClaw prioritizes security at every layer. All data is encrypted, containers are isolated, and API keys never touch the mobile app.
+DanClaw uses InsForge.dev for everything - Auth, Database, Storage, Functions, and Deployment. One platform, one security model.
 
 ## Authentication
 
-### OAuth Flow
+### OAuth Flow (InsForge Auth)
 ```
 1. User taps "Sign in with Google"
 2. Google OAuth popup
 3. User grants permission
 4. Google returns token
-5. App sends token to Supabase
-6. Supabase verifies token
-7. Supabase creates JWT
-8. App stores JWT in secure storage
-9. All API requests include JWT
+5. InsForge Auth verifies token
+6. InsForge Auth creates JWT
+7. App stores JWT in secure storage
+8. All API requests include JWT
 ```
 
 ### Token Management
@@ -27,7 +26,7 @@ DanClaw prioritizes security at every layer. All data is encrypted, containers a
 
 ## Authorization
 
-### Row Level Security (RLS)
+### Row Level Security (RLS) - InsForge PostgreSQL
 ```sql
 -- Users can only see their own data
 CREATE POLICY "Users can view own profile"
@@ -41,7 +40,7 @@ CREATE POLICY "Users can manage own deployments"
 ```
 
 ### API Key Management
-- OpenRouter API keys stored in GCP Secret Manager
+- OpenRouter API keys stored in InsForge Secrets
 - Keys injected as environment variables to containers
 - Keys never sent to mobile app
 - Keys rotated every 90 days
@@ -49,9 +48,9 @@ CREATE POLICY "Users can manage own deployments"
 ## Data Protection
 
 ### Encryption at Rest
-- Supabase: AES-256 encryption
-- GCP Cloud Run: Encrypted by default
-- GCP Secret Manager: Encrypted
+- InsForge PostgreSQL: AES-256 encryption
+- InsForge Storage: Encrypted by default
+- InsForge Secrets: Encrypted
 
 ### Encryption in Transit
 - HTTPS everywhere
@@ -81,7 +80,7 @@ CREATE POLICY "Users can manage own deployments"
 
 ## Monitoring
 
-### Security Events
+### Security Events (InsForge)
 - Failed login attempts
 - API key usage
 - Container access logs
@@ -110,7 +109,7 @@ CREATE POLICY "Users can manage own deployments"
 ## Incident Response
 
 ### Detection
-- Automated monitoring
+- Automated monitoring (InsForge)
 - User reports
 - Security audits
 

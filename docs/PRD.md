@@ -6,16 +6,23 @@
 DanClaw is a mobile-first AI agent deployment platform. Users deploy AI agents in 60 seconds with zero DevOps.
 
 ### Problem
-Current AI agent deployment requires:
-- CLI knowledge
-- SSH access
-- Docker experience
-- Configuration files
+Current AI agent deployment requires CLI knowledge, SSH access, Docker experience, and configuration files.
 
 ### Solution
-One-click deployment to GCP Cloud Run containers with SwarmClaw + Paperclip.
+One-click deployment using InsForge.dev - one platform for everything (DB + Auth + Storage + Functions + Deploy).
 
-## 2. Target Users
+## 2. Technology Stack
+
+| Layer | Technology |
+|-------|------------|
+| Mobile | Expo SDK 52 |
+| Web | Next.js 14+ |
+| Backend | InsForge.dev (everything) |
+| Agent Runtime | SwarmClaw + Paperclip |
+| AI Models | OpenRouter |
+| Billing | RevenueCat |
+
+## 3. Target Users
 
 | Persona | Description | Use Case |
 |---------|-------------|----------|
@@ -24,20 +31,20 @@ One-click deployment to GCP Cloud Run containers with SwarmClaw + Paperclip.
 | Small teams | 2-5 people | Shared AI |
 | Developers | Want quick setup | Dev assistant |
 
-## 3. Features
+## 4. Features
 
-### 3.1 Core Features
+### 4.1 Core Features
 
 #### Deploy (60 seconds)
 - One-click deployment
-- Google/Apple auth
-- Automatic provisioning
+- Google/Apple auth (InsForge)
+- Automatic provisioning (InsForge Functions)
 - Health monitoring
 
 #### Chat
-- Real-time WebSocket
+- Real-time WebSocket (InsForge Realtime)
 - Multi-turn conversations
-- File uploads
+- File uploads (InsForge Storage)
 - Voice input (future)
 
 #### Dashboard
@@ -52,14 +59,14 @@ One-click deployment to GCP Cloud Run containers with SwarmClaw + Paperclip.
 - Tier management
 - Notifications
 
-### 3.2 Future Features
+### 4.2 Future Features
 - Multi-agent orchestration (SwarmClaw)
 - Company management (Paperclip)
 - Custom domains
 - Team sharing
 - ESP32 glasses integration
 
-## 4. Tiers
+## 5. Tiers
 
 | Feature | Free | Pro | Elite |
 |---------|------|-----|-------|
@@ -72,28 +79,28 @@ One-click deployment to GCP Cloud Run containers with SwarmClaw + Paperclip.
 | Agents | 1 | 5 | 20 |
 | Team | 1 | 3 | 10 |
 
-## 5. User Flows
+## 6. User Flows
 
-### 5.1 Deploy Flow
+### 6.1 Deploy Flow
 ```
 1. Open app
 2. Tap "Deploy My Agent"
-3. Sign in with Google/Apple
-4. Wait 60 seconds
+3. Sign in with Google/Apple (InsForge Auth)
+4. Wait 60 seconds (InsForge Functions)
 5. Agent ready
 6. Start chatting
 ```
 
-### 5.2 Chat Flow
+### 6.2 Chat Flow
 ```
 1. Open chat
 2. Type message
-3. Send
+3. Send (InsForge Realtime)
 4. Receive response
 5. Continue conversation
 ```
 
-### 5.3 Settings Flow
+### 6.3 Settings Flow
 ```
 1. Open settings
 2. Select model
@@ -102,7 +109,7 @@ One-click deployment to GCP Cloud Run containers with SwarmClaw + Paperclip.
 5. Agent uses new config
 ```
 
-## 6. Technical Requirements
+## 7. Technical Requirements
 
 ### Performance
 - Deploy time: <60 seconds
@@ -117,7 +124,7 @@ One-click deployment to GCP Cloud Run containers with SwarmClaw + Paperclip.
 - Data backup
 
 ### Security
-- OAuth authentication
+- OAuth authentication (InsForge Auth)
 - Container isolation
 - Data encryption
 - Rate limiting
@@ -128,7 +135,7 @@ One-click deployment to GCP Cloud Run containers with SwarmClaw + Paperclip.
 - Load balancing
 - Database sharding (future)
 
-## 7. Milestones
+## 8. Milestones
 
 | Phase | Duration | Deliverables |
 |-------|----------|--------------|
@@ -137,7 +144,7 @@ One-click deployment to GCP Cloud Run containers with SwarmClaw + Paperclip.
 | Polish | 2 weeks | UI/UX |
 | Launch | 1 week | App Store |
 
-## 8. Success Metrics
+## 9. Success Metrics
 
 | Metric | Target (Month 1) | Target (Month 6) |
 |--------|------------------|------------------|
