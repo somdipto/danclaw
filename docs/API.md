@@ -19,7 +19,7 @@ All API requests require a JWT token in the Authorization header:
 Authorization: Bearer <token>
 ```
 
-Token is obtained via OAuth (Google/Apple) through Supabase.
+Token is obtained via OAuth (Google/Apple) through InsForge Auth.
 
 ## Endpoints
 

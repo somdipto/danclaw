@@ -20,7 +20,7 @@ Week 9: Launch
 - [x] Create monorepo structure
 - [x] Configure Expo SDK 52
 - [x] Configure Next.js 14+
-- [x] Setup Supabase
+- [x] Setup InsForge.dev
 - [x] Setup GCP Cloud Run
 - [x] Configure CI/CD (GitHub Actions)
 
@@ -33,7 +33,7 @@ Week 9: Launch
 
 **Deliverables:**
 - Monorepo with working mobile + web
-- Supabase connected
+- InsForge.dev connected
 - GCP Cloud Run configured
 - Basic auth working
 
