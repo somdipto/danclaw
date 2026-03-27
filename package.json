@@ -1,0 +1,31 @@
+{
+  "name": "danclaw",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DanClaw - AI Agent Deployment Platform",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "dev:mobile": "cd apps/mobile && pnpm dev",
+    "dev:web": "cd apps/web && pnpm dev",
+    "build": "pnpm -r build",
+    "build:mobile": "cd apps/mobile && pnpm build",
+    "build:web": "cd apps/web && pnpm build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r clean"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "turbo": "^1.13.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

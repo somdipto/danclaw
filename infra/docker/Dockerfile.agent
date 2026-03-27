@@ -1,0 +1,27 @@
+# DanClaw Agent Runtime - Docker Image
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy application
+COPY . .
+
+# Install SwarmClaw
+RUN npm install -g @swarmclawai/swarmclaw
+
+# Install Paperclip
+RUN npm install -g paperclipai
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node healthcheck.js
+
+# Start application
+CMD ["node", "server.js"]
