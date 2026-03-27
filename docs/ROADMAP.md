@@ -21,33 +21,30 @@ Week 9: Launch
 - [x] Configure Expo SDK 52
 - [x] Configure Next.js 14+
 - [x] Setup InsForge.dev
-- [x] Setup GCP Cloud Run
 - [x] Configure CI/CD (GitHub Actions)
 
 ### Week 2: Core Infrastructure
-- [x] API Gateway setup
-- [x] Auth flow (Google OAuth)
-- [x] Database schema
+- [x] API Gateway setup (InsForge Functions)
+- [x] Auth flow (InsForge Auth - Google OAuth)
+- [x] Database schema (InsForge PostgreSQL)
 - [x] Basic UI components
 - [x] State management (Zustand)
 
 **Deliverables:**
 - Monorepo with working mobile + web
 - InsForge.dev connected
-- GCP Cloud Run configured
 - Basic auth working
 
 ## Phase 2: Core Features (Week 3-4)
 
 ### Week 3: Deploy
-- [x] Deploy API endpoint
-- [x] GCP Cloud Run integration
-- [x] Container lifecycle management
+- [x] Deploy API endpoint (InsForge Functions)
+- [x] Container management (InsForge)
 - [x] Health check system
 - [x] Provisioning screen
 
 ### Week 4: Chat
-- [x] WebSocket server
+- [x] WebSocket server (InsForge Realtime)
 - [x] Chat client
 - [x] Message routing
 - [x] Real-time updates
@@ -149,7 +146,7 @@ Week 1-2 ──▶ Week 3-4 ──▶ Week 5-6 ──▶ Week 7-8 ──▶ Week
 
 | Risk | Mitigation |
 |------|------------|
-| GCP delays | Start early, use pre-built images |
+| InsForge delays | Start early, have fallback |
 | Auth issues | Test thoroughly, fallback options |
 | Billing bugs | Extensive testing, webhooks |
 | App Store rejection | Follow guidelines strictly |

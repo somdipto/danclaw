@@ -68,18 +68,20 @@ cd apps/web && pnpm dev
 
 ## Why InsForge.dev?
 
-| Feature | Supabase + GCP | InsForge.dev |
-|---------|----------------|--------------|
-| DB | Supabase | ✅ Built-in |
-| Auth | Supabase | ✅ Built-in |
-| Storage | Supabase | ✅ Built-in |
-| Functions | GCP Cloud Run | ✅ Built-in |
-| Realtime | Supabase | ✅ Built-in |
-| Deployment | GCP Cloud Run | ✅ Built-in |
-| AI Integration | Manual | ✅ Built-in |
-| MCP Support | ❌ | ✅ Native |
-| Cost | 2 services | 1 service |
+| Feature | Traditional Setup | InsForge.dev |
+|---------|-------------------|--------------|
+| DB | Separate service | ✅ Built-in |
+| Auth | Separate service | ✅ Built-in |
+| Storage | Separate service | ✅ Built-in |
+| Functions | Separate service | ✅ Built-in |
+| Realtime | Separate service | ✅ Built-in |
+| Deployment | Separate service | ✅ Built-in |
+| AI Integration | Manual setup | ✅ Built-in |
+| MCP Support | Not available | ✅ Native |
+| Cost | Multiple services | 1 service |
 | Complexity | High | Low |
+
+**DanClaw uses ONLY InsForge.dev** - no Supabase, no GCP, no Convex.
 
 ## License
 

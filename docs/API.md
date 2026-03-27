@@ -374,9 +374,9 @@ POST /api/webhooks/revenuecat
 }
 ```
 
-### GCP Cloud Run Webhook
+### InsForge Webhook
 ```json
-POST /api/webhooks/gcp
+POST /api/webhooks/insforge
 
 {
   "type": "CONTAINER_STATUS",
