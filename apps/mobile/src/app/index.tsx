@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, Spacing, BottomTabInset } from '@/constants/theme';
-import { mockDeployments } from '@/constants/mockData';
+import { mockDeployments, formatUptime } from '@/constants/mockData';
 
 function StatusDot({ status }: { status: string }) {
   const color =
@@ -96,7 +96,7 @@ export default function DashboardScreen() {
                     <Text style={styles.deployStatLabel}>Memory</Text>
                   </View>
                   <View style={styles.deployStatItem}>
-                    <Text style={styles.deployStatValue}>{dep.uptime}</Text>
+                    <Text style={styles.deployStatValue}>{formatUptime(dep.uptime ?? 0)}</Text>
                     <Text style={styles.deployStatLabel}>Uptime</Text>
                   </View>
                 </View>

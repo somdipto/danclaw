@@ -1,88 +1,61 @@
-# DanClaw - AI Agent Deployment Platform
+# DanClaw — Next-Generation AI Agent Platform
 
-## What is DanClaw?
+DanClaw is a premium, monorepo-based platform for effortlessly provisioning, managing, and interacting with AI agents across various cloud providers (utilizing OpenRouter) and communication channels.
 
-DanClaw is a mobile-first AI agent deployment platform that enables users to deploy, manage, and chat with AI agents in under 60 seconds — with zero DevOps knowledge required.
-
-## Key Features
-
-- 🚀 **One-click deploy** - 60 seconds from tap to running agent
-- 📱 **Mobile-first** - iOS + Android + Web (single codebase)
-- 🤖 **Multi-agent** - SwarmClaw + Paperclip integration
-- 💬 **Real-time chat** - WebSocket-based communication
-- 💰 **Transparent pricing** - Free/Pro/Elite tiers
+Inspired by elegant interfaces like OpenRouter Spawn and Vercel, DanClaw provides a 60-second wizard to take an agent from idea to production-ready deployment.
 
 ## Architecture
 
-```
-danclaw/
-├── docs/                  # Documentation
-│   ├── ARCHITECTURE.md    # System architecture (InsForge.dev)
-│   ├── PRD.md            # Product requirements
-│   ├── UIUX.md           # UI/UX design
-│   ├── ROADMAP.md        # Development roadmap
-│   ├── API.md            # API specification
-│   ├── SECURITY.md       # Security model
-│   └── COMPETITORS.md    # Competitor analysis
-├── apps/
-│   ├── mobile/           # Expo SDK 52 (iOS/Android)
-│   └── web/              # Next.js 14+ (Web)
-├── packages/
-│   ├── shared/           # Shared logic (80% of code)
-│   ├── ui/               # Shared UI components
-│   └── api/              # Backend (InsForge Functions)
-├── infra/
-│   ├── insforge/         # InsForge.dev configuration
-│   └── docker/           # Docker configurations
-└── .github/
-    └── workflows/        # CI/CD pipelines
-```
+This project is structured as a `pnpm` workspace monorepo:
 
-## Quick Start
+### Apps
+- **`apps/web`**: The main Next.js 14 Web Application. A stunning, dark-mode heavy dashboard.
+- **`apps/mobile`**: The React Native application built with Expo SDK 55 & Expo Router.
 
+### Packages
+- **`packages/shared`**: The canonical source of truth for TypeScript types, enums, mock data, and pure utilities.
+- **`packages/api`**: A universal fetch-based API client integrating with `@insforge/sdk` for cross-platform data fetching, real-time WebSockets, and database persistence.
+
+## Technologies Used
+
+- **Framework**: Next.js 14 App Router, Expo SDK 55
+- **Language**: TypeScript throughout
+- **Styling**: TailwindCSS (v3.4), Framer Motion, Tabler Icons
+- **Backend & DB**: InsForge.dev (Auth, Postgres, Realtime, Edge Functions)
+- **Tooling**: pnpm workspaces, Turborepo
+
+## Local Development
+
+### 1. Install Dependencies
 ```bash
-# Clone
-git clone https://github.com/somdipto/danclaw.git
-cd danclaw
-
-# Install
 pnpm install
-
-# Start mobile
-cd apps/mobile && pnpm dev
-
-# Start web
-cd apps/web && pnpm dev
 ```
 
-## Tech Stack
+### 2. Configure Environment
+Web: Configure `apps/web/.env.local`
+Mobile: Configure `apps/mobile/.env`
 
-| Layer | Technology |
-|-------|------------|
-| Mobile | Expo SDK 55 |
-| Web | Next.js 14+ |
-| Backend | InsForge.dev (DB + Auth + Storage + Functions + Deploy) |
-| Agent Runtime | SwarmClaw + Paperclip |
-| AI Models | OpenRouter |
-| Billing | RevenueCat |
+Provide your InsForge Project URL and Anon Key:
+```
+NEXT_PUBLIC_INSFORGE_URL=https://...
+NEXT_PUBLIC_INSFORGE_ANON_KEY=ik_...
+```
 
-## Why InsForge.dev?
+### 3. Run Development Servers
+```bash
+# Start the web app (localhost:3000)
+pnpm --filter apps/web dev
 
-| Feature | Traditional Setup | InsForge.dev |
-|---------|-------------------|--------------|
-| DB | Separate service | ✅ Built-in |
-| Auth | Separate service | ✅ Built-in |
-| Storage | Separate service | ✅ Built-in |
-| Functions | Separate service | ✅ Built-in |
-| Realtime | Separate service | ✅ Built-in |
-| Deployment | Separate service | ✅ Built-in |
-| AI Integration | Manual setup | ✅ Built-in |
-| MCP Support | Not available | ✅ Native |
-| Cost | Multiple services | 1 service |
-| Complexity | High | Low |
+# Start the mobile app (Expo Go / Web)
+pnpm --filter apps/mobile start
+```
 
-**DanClaw uses ONLY InsForge.dev** - no Supabase, no GCP, no Convex.
-
-## License
-
-MIT
+## Setup Backend (InsForge)
+The backend requires tables for `users`, `deployments`, `messages`, and `activity`.
+To recreate the environment, use the InsForge CLI:
+```bash
+npm install -g @insforge/cli
+npx @insforge/cli login
+npx @insforge/cli link --project-id <your-id>
+npx @insforge/cli db import docs/SCHEMA.sql
+```

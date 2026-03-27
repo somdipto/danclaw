@@ -12,7 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, Spacing } from '@/constants/theme';
-import { mockMessages, type ChatMessage } from '@/constants/mockData';
+import { mockMessages, formatTime } from '@/constants/mockData';
+import type { Message } from '@/constants/mockData';
 
 function getSimulatedResponse(input: string): string {
   const lower = input.toLowerCase();
@@ -26,7 +27,7 @@ function getSimulatedResponse(input: string): string {
 }
 
 export default function ChatScreen() {
-  const [messages, setMessages] = useState<ChatMessage[]>(mockMessages);
+  const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -41,11 +42,13 @@ export default function ChatScreen() {
 
   const handleSend = () => {
     if (!input.trim()) return;
-    const userMsg: ChatMessage = {
+    const userMsg: Message = {
       id: `m_${Date.now()}`,
+      deployment_id: 'dep_01',
       role: 'user',
       content: input,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: 'message',
+      created_at: new Date().toISOString(),
     };
     setMessages(prev => [...prev, userMsg]);
     const inputText = input;
@@ -53,11 +56,13 @@ export default function ChatScreen() {
     setIsTyping(true);
 
     setTimeout(() => {
-      const agentMsg: ChatMessage = {
+      const agentMsg: Message = {
         id: `m_${Date.now() + 1}`,
+        deployment_id: 'dep_01',
         role: 'agent',
         content: getSimulatedResponse(inputText),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: 'response',
+        created_at: new Date().toISOString(),
       };
       setMessages(prev => [...prev, agentMsg]);
       setIsTyping(false);
@@ -104,7 +109,7 @@ export default function ChatScreen() {
                     msg.role === 'user' ? { color: 'rgba(255,255,255,0.6)' } : { color: Colors.dark500 },
                   ]}
                 >
-                  {msg.timestamp}
+                  {formatTime(msg.created_at)}
                 </Text>
               </View>
             ))}
