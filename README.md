@@ -59,7 +59,7 @@ cd apps/web && pnpm dev
 
 | Layer | Technology |
 |-------|------------|
-| Mobile | Expo SDK 52 |
+| Mobile | Expo SDK 55 |
 | Web | Next.js 14+ |
 | Backend | InsForge.dev (DB + Auth + Storage + Functions + Deploy) |
 | Agent Runtime | SwarmClaw + Paperclip |
