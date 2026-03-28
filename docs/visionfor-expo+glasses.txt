@@ -1,0 +1,70 @@
+Product Document: The Dan Ecosystem
+
+Umbrella: Dan Lab
+Core Products: Dan Glasses (Hardware) & Dan Claw (Software/Agent Hub)
+
+TL;DR
+
+We are building an end-to-end AI hardware and software loop. Dan Glasses are the wearable interface, and Dan Claw is the control center to deploy, manage, and interact with specialized AI agents (inspired by architectures like simpleclaw, openclaw, and swarmclaw).
+
+The Software: Dan Claw (The Brain)
+
+Before diving into hardware versions, we need to define Dan Claw.
+
+What it is: A platform built on Next.js (Web) and React Native Expo (Mobile app).
+
+Function: It manages Dockerized AI agents in our cloud VPS.
+
+Market Strategy: We can market Dan Claw as its own standalone SaaS product. People can set up specialized agents (e.g., Marketing Agent, Tech Agent, Management Agent) independent of the hardware, but it integrates flawlessly with Dan Glasses.
+
+Phase 1: Version 1 (The Bridge Era)
+
+V1 is all about proving the pipeline using low-cost hardware and relying on the mobile app for the heavy lifting during setup.
+
+Hardware Details (V1)
+
+Chipset: ESP32.
+
+Capabilities: Mic and speaker only. No screen.
+
+Role: A lightweight terminal. It receives voice input and plays audio output.
+
+Software & Architecture Flow (V1)
+
+The Setup (Mobile App): The user downloads the Dan Claw React Native Expo app. They log in via Google Auth, set up their API keys, pick their agents (Swarm, Paperclip, etc.), and pair the Dan Glasses.
+
+The Hand-off: The app handles all the complex authentication and agent configuration.
+
+The Direct Link: Once paired, the ESP32 glasses communicate directly with the cloud agents (housed in Docker containers).
+
+The Kicker: You can turn your phone completely off. The glasses stay connected to the open claw cloud agents on their own. The app is strictly a setup utility.
+
+Phase 2: Version 2 (The Standalone AR Era)
+
+V2 removes the mobile phone entirely, introduces a visual interface, and brings heavy compute locally.
+
+Hardware Details (V2)
+
+Visuals: Built-in screen/HUD inside the lenses.
+
+Compute: Upgraded board (moving past ESP32) to handle visual processing and local models.
+
+Interaction: Built-in camera for hand gesture tracking, or a secondary Bluetooth gesture ring (similar to Ray-Bans) to navigate UI without looking weird in public.
+
+Software & Architecture Flow (V2)
+
+No Mobile App Needed: You open the Dan Claw website directly inside the glasses' AR interface.
+
+Gesture Setup: You authenticate and configure agents just by looking and using hand gestures or the ring.
+
+Dual-Mode Intelligence:
+
+Online: Regular LLM calls to the cloud for heavy tasks.
+
+Offline (The Gamechanger): We run an SLM (Small Language Model) directly on the device or a local VM. You can run complete agentic tasks off-grid, with zero internet connection.
+
+Summary of the Roadmap
+
+V1: Build the Dan Claw Next.js/Expo platform. Flash the ESP32 to talk to it. Use phone for auth. Release and scale the agent marketplace.
+
+V2: Ditch the phone. Add screens. Add gesture tracking. Run local SLMs for off-grid capabilities.
