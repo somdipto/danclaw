@@ -1,49 +1,50 @@
 /**
  * @danclaw/shared — API Request/Response Types
  *
- * Derived from docs/API.md. Each type maps 1:1 to an endpoint.
+ * These types map to the @insforge/sdk API surface. They must match
+ * the actual SDK signatures, not a hypothetical ideal API.
  */
 
-import type {
-  User,
-  Tier,
-  Deployment,
-  BillingSubscription,
-  Usage,
-  AuthProvider,
-} from './index';
+import type { User, Tier, Deployment } from './index';
 
 // ─────────────────────────────────────────────
 // Auth
 // ─────────────────────────────────────────────
 
+/** Email/password sign-in request */
 export interface LoginRequest {
-  provider: AuthProvider;
-  token: string;
+  email: string;
+  password: string;
 }
 
+/** Response from a successful login */
 export interface LoginResponse {
   user: User;
   token: string;
-  refresh_token: string;
 }
 
+/** Email/password registration request */
 export interface RegisterRequest {
   email: string;
-  provider: AuthProvider;
-  token: string;
+  password: string;
+  name?: string;
 }
 
+/** Response from a successful registration */
 export interface RegisterResponse {
   user: User;
   token: string;
 }
 
+/** Session refresh — InsForge manages refresh tokens internally */
 export interface RefreshRequest {
+  /** Required by schema but managed by InsForge SDK; pass empty string */
   refresh_token: string;
 }
 
+/** Response from a session refresh */
 export interface RefreshResponse {
+  user: User;
   token: string;
 }
 
@@ -51,51 +52,50 @@ export interface RefreshResponse {
 // Deployments
 // ─────────────────────────────────────────────
 
+/** Request body for creating a deployment */
 export interface CreateDeploymentRequest {
+  service_name: string;
   tier: Tier;
   region: string;
-  config: {
-    model: string;
-    channel: string;
-    openrouter_token?: string;
-  };
+  model: string;
+  channel: string;
+  openrouter_token?: string;
 }
 
+/** Response from a deployment creation call */
 export interface CreateDeploymentResponse {
-  id: string;
-  status: 'provisioning';
-  service_name: string;
-  created_at: string;
+  deployment: Deployment;
 }
 
+/** Response from listing user deployments */
 export interface ListDeploymentsResponse {
   deployments: Deployment[];
   total: number;
 }
 
+/** Generic response for deployment action (start/stop/restart) */
 export interface DeploymentActionResponse {
-  id: string;
-  status: string;
-  message: string;
+  success: boolean;
+  message?: string;
 }
 
 // ─────────────────────────────────────────────
 // User
 // ─────────────────────────────────────────────
 
+/** Response from fetching the current user profile */
 export interface UserProfileResponse {
-  id: string;
-  email: string;
-  tier: Tier;
-  created_at: string;
-  usage: {
-    deployments: number;
-    messages_today: number;
-    cost_today: number;
-  };
+  user: User;
 }
 
-export interface UsageResponse extends Usage {}
+/** Response from fetching usage stats */
+export interface UsageResponse {
+  usage: {
+    total_requests: number;
+    cost: number;
+    models: string[];
+  };
+}
 
 // ─────────────────────────────────────────────
 // Billing
@@ -106,7 +106,12 @@ export interface SubscribeRequest {
   payment_method: string;
 }
 
-export interface SubscribeResponse extends BillingSubscription {}
+export interface SubscribeResponse {
+  subscription_id: string;
+  status: 'active' | 'cancelled' | 'past_due';
+  plan: Tier;
+  next_billing: string;
+}
 
 export interface CancelResponse {
   subscription_id: string;

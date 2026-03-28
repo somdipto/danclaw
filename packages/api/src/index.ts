@@ -3,8 +3,7 @@
  */
 
 // Client
-export { DanClawClient, danclawClient } from './client';
-export type { DanClawClientConfig } from './client';
+export { DanClawClient, danclawClient, insforge } from './client';
 
 // Hooks
 export {
@@ -29,5 +28,4 @@ export type {
   ChatConnectionState,
   ChatEventHandler,
   StateChangeHandler,
-  ChatWebSocketConfig,
 } from './websocket';

@@ -198,10 +198,9 @@ export function useLogin(
 ) {
   return useMutation({
     mutationFn: (req: LoginRequest) => danclawClient.login(req),
-    onSuccess: (result: ApiResponse<LoginResponse>) => {
-      if (result.data?.token) {
-        danclawClient.setAuthToken(result.data.token);
-      }
+    onSuccess: (_result: ApiResponse<LoginResponse>) => {
+      // InsForge SDK handles auth internally via cookies/HttpOnly tokens
+      // No manual token management needed
     },
     ...options,
   });
