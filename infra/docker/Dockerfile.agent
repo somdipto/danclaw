@@ -1,27 +1,42 @@
-# DanClaw Agent Runtime - Docker Image
-FROM node:20-slim
+# DanClaw Agent Runtime Dockerfile
+# OpenClaw agent runtime with proper security, health checks, and environment variable handling
+
+FROM node:20-alpine AS base
+
+LABEL maintainer="DanLab <dev@danlab.dev>"
+LABEL description="DanClaw AI Agent Runtime powered by OpenClaw"
+
+# Install OpenClaw and Paperclip
+RUN apk add --no-cache curl && \
+    npm install -g @swarmclawai/swarmclaw && \
+    npm install -g paperclipai && \
+    npm cache clean --force
 
 WORKDIR /app
 
-# Install dependencies
+# Copy package files
 COPY package*.json ./
+
+# Install production dependencies only
 RUN npm ci --only=production
 
-# Copy application
+# Copy application source
 COPY . .
 
-# Install SwarmClaw
-RUN npm install -g @swarmclawai/swarmclaw
+# Create non-root user for security
+RUN addgroup -g 1001 -S agentgroup && \
+    adduser -u 1001 -S agentuser -G agentgroup && \
+    chown -R agentuser:agentgroup /app
 
-# Install Paperclip
-RUN npm install -g paperclipai
+USER agentuser
 
-# Expose port
+# Health check - verify port is listening
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:${PORT:-8080}/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
+
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node healthcheck.js
+ENV NODE_ENV=production
+ENV PORT=8080
 
-# Start application
 CMD ["node", "server.js"]

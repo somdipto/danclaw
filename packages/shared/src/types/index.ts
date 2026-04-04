@@ -214,6 +214,15 @@ export interface Usage {
   history: UsageDay[];
 }
 
+/** Wrapper matching what the API client returns */
+export interface UsageResponse {
+  usage: {
+    total_requests: number;
+    cost: number;
+    models: string[];
+  };
+}
+
 export interface BillingSubscription {
   subscription_id: string;
   status: 'active' | 'cancelled' | 'past_due';
@@ -222,12 +231,19 @@ export interface BillingSubscription {
   end_date?: string;
 }
 
+/** Response envelope for listing messages */
+export interface ListMessagesResponse {
+  messages: Message[];
+  total: number;
+}
+
 // ─────────────────────────────────────────────
 // Activity Feed
 // ─────────────────────────────────────────────
 
 export interface Activity {
   id: string;
+  user_id: string;
   action: string;
   timestamp: string;
   icon: string;
@@ -250,4 +266,45 @@ export interface ApiError {
 export interface ApiResponse<T> {
   data?: T;
   error?: ApiError;
+}
+
+// ─────────────────────────────────────────────
+// API Request/Response Types
+// ─────────────────────────────────────────────
+
+export interface CreateDeploymentRequest {
+  service_name: string;
+  tier: Tier;
+  region: string;
+  model: string;
+  channel: string;
+  openrouter_token?: string;
+}
+
+export interface CreateDeploymentResponse {
+  deployment: Deployment;
+}
+
+export interface ListDeploymentsResponse {
+  deployments: Deployment[];
+  total: number;
+}
+
+export interface DeploymentActionResponse {
+  success: boolean;
+  message?: string;
+}
+
+export interface UserProfileResponse {
+  user: User;
+}
+
+export interface LoginResponse {
+  user: User;
+  token: string;
+}
+
+export interface RegisterResponse {
+  user: User;
+  token: string;
 }

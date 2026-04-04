@@ -1,0 +1,36 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_INSFORGE_URL: ${{ secrets.NEXT_PUBLIC_INSFORGE_URL }}
+          NEXT_PUBLIC_INSFORGE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_INSFORGE_ANON_KEY }}
+          NEXT_PUBLIC_OPENROUTER_API_KEY: ${{ secrets.NEXT_PUBLIC_OPENROUTER_API_KEY }}
+      - uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: apps/web

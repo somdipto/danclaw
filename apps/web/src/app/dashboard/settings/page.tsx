@@ -3,18 +3,57 @@
 import { useState } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { mockUser, aiModels } from '@/lib/mockData';
+import { useUserProfile, useUsage, danclawClient } from '@danclaw/api';
+import { useAuth } from '@/lib/auth-context';
+import { AI_MODELS } from '@danclaw/shared';
 
 export default function SettingsPage() {
   const [selectedModel, setSelectedModel] = useState('claude-3-sonnet');
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(4096);
+  const [apiKey, setApiKey] = useState('');
+  const [apiKeySaved, setApiKeySaved] = useState(false);
+  const [isSavingKey, setIsSavingKey] = useState(false);
   const [notifications, setNotifications] = useState({
     deployComplete: true,
     chatResponse: true,
     weeklySummary: false,
     costAlerts: true,
   });
+
+  const { data: profileData, isLoading: profileLoading } = useUserProfile();
+  const { data: usageData } = useUsage();
+  const { logout } = useAuth();
+
+  const user = profileData?.data?.user;
+  const usage = usageData?.data?.usage;
+  const tierLabel = user?.tier === 'pro' ? 'Pro Plan' : user?.tier === 'elite' ? 'Elite Plan' : 'Free Plan';
+
+  const handleSaveApiKey = async () => {
+    setIsSavingKey(true);
+    setApiKeySaved(false);
+    try {
+      await danclawClient.updateProfile({ openrouter_token: apiKey || undefined });
+      setApiKeySaved(true);
+      setApiKey('');
+      setTimeout(() => setApiKeySaved(false), 3000);
+    } catch {
+      // handle silently
+    } finally {
+      setIsSavingKey(false);
+    }
+  };
+
+  if (profileLoading) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-8 animate-fade-in">
+        <div className="h-8 w-48 bg-dark-800 rounded-xl animate-pulse" />
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-48 bg-dark-800 rounded-2xl animate-pulse" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-fade-in">
@@ -30,20 +69,24 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between py-3 border-b border-dark-700/30">
             <div>
               <p className="text-sm text-dark-400">Email</p>
-              <p className="text-white">{mockUser.email}</p>
+              <p className="text-white">{user?.email}</p>
             </div>
           </div>
           <div className="flex items-center justify-between py-3 border-b border-dark-700/30">
             <div>
               <p className="text-sm text-dark-400">Plan</p>
-              <p className="text-white capitalize">{mockUser.tier}</p>
+              <p className="text-white capitalize">{tierLabel}</p>
             </div>
             <Button variant="outline" size="sm">Manage Plan</Button>
           </div>
           <div className="flex items-center justify-between py-3">
             <div>
               <p className="text-sm text-dark-400">Usage This Month</p>
-              <p className="text-white">2.1GB / 4GB</p>
+              <p className="text-white">
+                {usage
+                  ? `$${usage.cost.toFixed(2)} · ${usage.total_requests.toLocaleString()} requests`
+                  : 'Loading...'}
+              </p>
             </div>
             <Button variant="ghost" size="sm">View Details</Button>
           </div>
@@ -62,7 +105,7 @@ export default function SettingsPage() {
               onChange={(e) => setSelectedModel(e.target.value)}
               className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-primary-500 focus:outline-none"
             >
-              {aiModels.map((model) => (
+              {AI_MODELS.map((model) => (
                 <option key={model.id} value={model.id}>
                   {model.icon} {model.name} ({model.provider})
                 </option>
@@ -75,11 +118,26 @@ export default function SettingsPage() {
             <label className="block text-sm font-medium text-white mb-2">
               OpenRouter API Key
             </label>
-            <input
-              type="password"
-              placeholder="sk-or-..."
-              className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-dark-500 focus:border-primary-500 focus:outline-none"
-            />
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="sk-or-..."
+                className="flex-1 bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-dark-500 focus:border-primary-500 focus:outline-none"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                loading={isSavingKey}
+                onClick={handleSaveApiKey}
+              >
+                {apiKeySaved ? '✓ Saved' : 'Save'}
+              </Button>
+            </div>
+            {apiKeySaved && (
+              <p className="text-xs text-secondary-400 mt-1">API key saved successfully.</p>
+            )}
             <p className="text-xs text-dark-500 mt-1">
               Optional. Use your own key for higher rate limits.
             </p>
@@ -196,7 +254,7 @@ export default function SettingsPage() {
             <h2 className="text-lg font-semibold text-white">Sign Out</h2>
             <p className="text-sm text-dark-400">Sign out of your account on this device</p>
           </div>
-          <Button variant="danger" onClick={() => window.location.href = '/'}>
+          <Button variant="danger" onClick={logout}>
             Logout
           </Button>
         </div>

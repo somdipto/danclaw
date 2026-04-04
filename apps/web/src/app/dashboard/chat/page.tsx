@@ -1,32 +1,85 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import { mockDeployments, mockMessages } from '@/lib/mockData';
-import type { Message } from '@/types';
+import { useDeployments, useMessages, ChatWebSocket } from '@danclaw/api';
+import type { Message } from '@danclaw/shared';
 
 export default function ChatPage() {
-  const [selectedDeployment, setSelectedDeployment] = useState(mockDeployments[0]);
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [selectedDeploymentId, setSelectedDeploymentId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<ChatWebSocket | null>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const { data: deploymentsData, isLoading: depLoading } = useDeployments();
+  const deployments = deploymentsData?.data?.deployments ?? [];
+  const runningDeployments = deployments.filter((d) => d.status === 'running');
+
+  const { data: messagesData, isLoading: msgLoading } = useMessages(selectedDeploymentId || '', {
+    enabled: !!selectedDeploymentId,
+  });
 
   useEffect(() => {
-    scrollToBottom();
+    if (messagesData?.data?.messages) {
+      setMessages(messagesData.data.messages);
+    }
+  }, [messagesData]);
+
+  const handleWsMessage = useCallback((msg: { type: string; content: string; timestamp: string }) => {
+    if (msg.type === 'response' || msg.type === 'message') {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `ws_${Date.now()}`,
+          deployment_id: selectedDeploymentId || '',
+          role: msg.type === 'response' ? 'agent' : 'user',
+          content: msg.content,
+          type: msg.type === 'response' ? 'response' : 'message',
+          created_at: msg.timestamp,
+        },
+      ]);
+      setIsTyping(false);
+    } else if (msg.type === 'status') {
+      setIsTyping(true);
+    }
+  }, [selectedDeploymentId]);
+
+  const handleWsStateChange = useCallback((state: string) => {
+    setWsConnected(state === 'connected');
+  }, []);
+
+  useEffect(() => {
+    if (!selectedDeploymentId) return;
+
+    if (wsRef.current) {
+      wsRef.current.disconnect();
+    }
+
+    const ws = new ChatWebSocket();
+    wsRef.current = ws;
+    ws.onMessage(handleWsMessage);
+    ws.onStateChange(handleWsStateChange);
+    ws.connect(selectedDeploymentId);
+
+    return () => {
+      ws.disconnect();
+    };
+  }, [selectedDeploymentId, handleWsMessage, handleWsStateChange]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const handleSend = () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !selectedDeploymentId) return;
 
     const userMsg: Message = {
       id: `msg_${Date.now()}`,
-      deployment_id: selectedDeployment.id,
+      deployment_id: selectedDeploymentId,
       role: 'user',
       content: input,
       type: 'message',
@@ -37,20 +90,45 @@ export default function ChatPage() {
     setInput('');
     setIsTyping(true);
 
-    // Simulate agent response
-    setTimeout(() => {
-      const agentMsg: Message = {
-        id: `msg_${Date.now() + 1}`,
-        deployment_id: selectedDeployment.id,
-        role: 'agent',
-        content: getSimulatedResponse(input),
-        type: 'response',
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, agentMsg]);
+    if (wsRef.current) {
+      wsRef.current.send(input);
+    } else {
       setIsTyping(false);
-    }, 1500 + Math.random() * 1000);
+    }
   };
+
+  if (depLoading) {
+    return (
+      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (runningDeployments.length === 0) {
+    return (
+      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center text-center">
+        <p className="text-4xl mb-4">💬</p>
+        <p className="text-white font-medium mb-2">No running agents</p>
+        <p className="text-dark-400 text-sm mb-6">Deploy an agent to start chatting</p>
+        <a
+          href="/dashboard/deploy"
+          className="px-6 py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium transition-all"
+        >
+          🚀 Deploy Agent
+        </a>
+      </div>
+    );
+  }
+
+  const selectedDeployment = runningDeployments.find((d) => d.id === selectedDeploymentId) || runningDeployments[0];
+  const activeDepId = selectedDeployment?.id;
+
+  useEffect(() => {
+    if (activeDepId && !selectedDeploymentId) {
+      setSelectedDeploymentId(activeDepId);
+    }
+  }, [activeDepId, selectedDeploymentId]);
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col animate-fade-in">
@@ -58,30 +136,34 @@ export default function ChatPage() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-bold text-white">Chat</h1>
-          <Badge status={selectedDeployment.status} size="sm" />
+          {selectedDeployment && (
+            <Badge status={selectedDeployment.status} size="sm" />
+          )}
+          <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-secondary-500' : 'bg-dark-600'}`} title={wsConnected ? 'Connected' : 'Disconnected'} />
         </div>
 
         {/* Deployment Selector */}
         <select
-          value={selectedDeployment.id}
-          onChange={(e) => {
-            const dep = mockDeployments.find((d) => d.id === e.target.value);
-            if (dep) setSelectedDeployment(dep);
-          }}
+          value={selectedDeploymentId || activeDepId || ''}
+          onChange={(e) => setSelectedDeploymentId(e.target.value)}
           className="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white focus:border-primary-500 focus:outline-none"
         >
-          {mockDeployments
-            .filter((d) => d.status === 'running')
-            .map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.service_name}
-              </option>
-            ))}
+          {runningDeployments.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.service_name}
+            </option>
+          ))}
         </select>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
+        {msgLoading && messages.length === 0 && (
+          <div className="flex items-center justify-center h-32">
+            <div className="w-8 h-8 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
+          </div>
+        )}
+
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -160,7 +242,7 @@ export default function ChatPage() {
         {/* Send */}
         <button
           onClick={handleSend}
-          disabled={!input.trim()}
+          disabled={!input.trim() || !selectedDeploymentId}
           className="p-2 bg-primary-500 hover:bg-primary-600 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shrink-0"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -170,19 +252,4 @@ export default function ChatPage() {
       </div>
     </div>
   );
-}
-
-// Simple response simulator
-function getSimulatedResponse(input: string): string {
-  const lower = input.toLowerCase();
-  if (lower.includes('email') || lower.includes('inbox')) {
-    return "I've scanned your inbox. You have 3 important emails:\n\n1. **Team standup** — Rescheduled to 4 PM\n2. **Client proposal** — Needs review by tomorrow\n3. **Deploy notification** — Agent gamma deployed successfully\n\nWant me to draft a reply to any of these?";
-  }
-  if (lower.includes('code') || lower.includes('pr') || lower.includes('review')) {
-    return "I found 2 open pull requests:\n\n**PR #142** — Add user authentication module\n- 12 files changed, +340 -28\n- All tests passing ✅\n- Recommendation: Approve with minor suggestions\n\n**PR #143** — Fix memory leak in WebSocket handler\n- 3 files changed, +15 -8\n- Critical fix, recommend immediate merge\n\nShall I post review comments?";
-  }
-  if (lower.includes('schedule') || lower.includes('meeting') || lower.includes('calendar')) {
-    return "Here's your schedule for today:\n\n🕐 **1:00 PM** — Team standup (30 min)\n🕑 **2:30 PM** — Client review call (45 min)\n🕓 **4:00 PM** — Sprint planning (1 hr)\n\nYou have a 1-hour gap between 3:15-4:00 PM. Want me to schedule something?";
-  }
-  return `I've processed your request: "${input}"\n\nHere's what I found:\n\n• Task has been noted and added to your workflow\n• I'll monitor for any updates and notify you\n• If you need me to take action, just say the word!\n\nAnything else I can help with?`;
 }

@@ -132,12 +132,12 @@ export const mockMessages: Message[] = [
 // ─────────────────────────────────────────────
 
 export const mockActivity: Activity[] = [
-  { id: 'act_01', action: 'Email triaged and summarized', timestamp: '5 min ago', icon: '📧' },
-  { id: 'act_02', action: 'Pull request reviewed', timestamp: '12 min ago', icon: '🔀' },
-  { id: 'act_03', action: 'Quarterly report drafted', timestamp: '1 hour ago', icon: '📝' },
-  { id: 'act_04', action: 'Meeting scheduled with client', timestamp: '2 hours ago', icon: '📅' },
-  { id: 'act_05', action: 'Slack messages answered', timestamp: '3 hours ago', icon: '💬' },
-  { id: 'act_06', action: 'Database backup completed', timestamp: '5 hours ago', icon: '💾' },
+  { id: 'act_01', user_id: mockUser.id, action: 'Email triaged and summarized', timestamp: '2026-03-27T09:55:00Z', icon: '📧' },
+  { id: 'act_02', user_id: mockUser.id, action: 'Pull request reviewed', timestamp: '2026-03-27T09:48:00Z', icon: '🔀' },
+  { id: 'act_03', user_id: mockUser.id, action: 'Quarterly report drafted', timestamp: '2026-03-27T09:00:00Z', icon: '📝' },
+  { id: 'act_04', user_id: mockUser.id, action: 'Meeting scheduled with client', timestamp: '2026-03-27T08:00:00Z', icon: '📅' },
+  { id: 'act_05', user_id: mockUser.id, action: 'Slack messages answered', timestamp: '2026-03-27T07:00:00Z', icon: '💬' },
+  { id: 'act_06', user_id: mockUser.id, action: 'Database backup completed', timestamp: '2026-03-27T05:00:00Z', icon: '💾' },
 ];
 
 // ─────────────────────────────────────────────

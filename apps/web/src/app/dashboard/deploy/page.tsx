@@ -4,17 +4,49 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { aiModels, channels } from '@/lib/mockData';
+import { AI_MODELS, CHANNELS, PRICING_TIERS } from '@danclaw/shared';
+import { useCreateDeployment } from '@danclaw/api';
 
 type DeployStep = 'model' | 'channel' | 'config' | 'deploying';
 
 export default function DeployPage() {
   const router = useRouter();
   const [step, setStep] = useState<DeployStep>('model');
-  const [selectedModel, setSelectedModel] = useState<string>('');
-  const [selectedChannel, setSelectedChannel] = useState<string>('');
-  const [selectedTier, setSelectedTier] = useState<string>('free');
-  const [deploying, setDeploying] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [selectedChannel, setSelectedChannel] = useState('');
+  const [selectedTier, setSelectedTier] = useState<'free' | 'pro' | 'elite'>('free');
+  const [selectedRegion, setSelectedRegion] = useState('us-central1');
+  const [serviceName, setServiceName] = useState('');
+  const [apiToken, setApiToken] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const createDeployment = useCreateDeployment({
+    onSuccess: (result) => {
+      setErrorMessage(null);
+      if (result.data?.deployment) {
+        router.push(`/dashboard/deploy/provisioning?id=${result.data.deployment.id}`);
+      }
+    },
+    onError: (err) => {
+      setErrorMessage(err?.message || 'Failed to create deployment. Please try again.');
+    },
+  });
+
+  const handleDeploy = async () => {
+    if (!selectedModel || !selectedChannel || !serviceName) return;
+    setErrorMessage(null);
+
+    await createDeployment.mutateAsync({
+      service_name: serviceName.toLowerCase().replace(/\s+/g, '-'),
+      model: selectedModel,
+      channel: selectedChannel,
+      tier: selectedTier,
+      region: selectedRegion,
+      openrouter_token: apiToken || undefined,
+    });
+  };
+
+  const dismissError = () => setErrorMessage(null);
 
   const stepNumber = { model: 1, channel: 2, config: 3, deploying: 4 };
   const steps = [
@@ -23,12 +55,10 @@ export default function DeployPage() {
     { key: 'config', label: 'Configure' },
   ];
 
-  const handleDeploy = () => {
-    setDeploying(true);
-    setStep('deploying');
-    setTimeout(() => {
-      router.push('/dashboard/deploy/provisioning');
-    }, 800);
+  const canProceed = {
+    model: !!selectedModel,
+    channel: !!selectedChannel,
+    config: !!serviceName,
   };
 
   return (
@@ -43,16 +73,18 @@ export default function DeployPage() {
       <div className="flex items-center gap-2">
         {steps.map((s, i) => (
           <div key={s.key} className="flex items-center gap-2 flex-1">
-            <div className={`
-              w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0
-              transition-all duration-300
-              ${stepNumber[step] > i + 1
-                ? 'bg-secondary-500 text-white'
-                : stepNumber[step] === i + 1
-                  ? 'bg-primary-500 text-white glow-primary'
-                  : 'bg-dark-800 text-dark-500 border border-dark-700'
-              }
-            `}>
+            <div
+              className={`
+                w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0
+                transition-all duration-300
+                ${stepNumber[step] > i + 1
+                  ? 'bg-secondary-500 text-white'
+                  : stepNumber[step] === i + 1
+                    ? 'bg-primary-500 text-white'
+                    : 'bg-dark-800 text-dark-500 border border-dark-700'
+                }
+              `}
+            >
               {stepNumber[step] > i + 1 ? '✓' : i + 1}
             </div>
             <span className={`text-sm hidden sm:block ${stepNumber[step] >= i + 1 ? 'text-white' : 'text-dark-500'}`}>
@@ -65,19 +97,31 @@ export default function DeployPage() {
         ))}
       </div>
 
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="flex items-center justify-between p-4 rounded-xl bg-red-500/10 border border-red-500/20 animate-slide-up">
+          <p className="text-sm text-red-400">{errorMessage}</p>
+          <button onClick={dismissError} className="text-red-400 hover:text-red-300 ml-4 shrink-0">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Step 1: Select Model */}
       {step === 'model' && (
         <div className="space-y-4 animate-slide-up">
           <h2 className="text-lg font-semibold text-white">Which AI model?</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {aiModels.map((model) => (
+            {AI_MODELS.map((model) => (
               <Card
                 key={model.id}
                 hover
                 onClick={() => setSelectedModel(model.id)}
                 className={`cursor-pointer transition-all ${
                   selectedModel === model.id
-                    ? 'border-primary-500/50 bg-primary-500/5 glow-primary'
+                    ? 'border-primary-500/50 bg-primary-500/5'
                     : ''
                 }`}
               >
@@ -93,10 +137,7 @@ export default function DeployPage() {
             ))}
           </div>
           <div className="flex justify-end">
-            <Button
-              disabled={!selectedModel}
-              onClick={() => setStep('channel')}
-            >
+            <Button disabled={!canProceed.model} onClick={() => setStep('channel')}>
               Next: Select Channel →
             </Button>
           </div>
@@ -108,14 +149,14 @@ export default function DeployPage() {
         <div className="space-y-4 animate-slide-up">
           <h2 className="text-lg font-semibold text-white">Which channel?</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {channels.map((channel) => (
+            {CHANNELS.map((channel) => (
               <Card
                 key={channel.id}
                 hover={channel.available}
                 onClick={() => channel.available && setSelectedChannel(channel.id)}
                 className={`
                   ${!channel.available ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                  ${selectedChannel === channel.id ? 'border-primary-500/50 bg-primary-500/5 glow-primary' : ''}
+                  ${selectedChannel === channel.id ? 'border-primary-500/50 bg-primary-500/5' : ''}
                 `}
               >
                 <div className="flex items-center gap-3">
@@ -134,13 +175,8 @@ export default function DeployPage() {
             ))}
           </div>
           <div className="flex justify-between">
-            <Button variant="ghost" onClick={() => setStep('model')}>
-              ← Back
-            </Button>
-            <Button
-              disabled={!selectedChannel}
-              onClick={() => setStep('config')}
-            >
+            <Button variant="ghost" onClick={() => setStep('model')}>← Back</Button>
+            <Button disabled={!canProceed.channel} onClick={() => setStep('config')}>
               Next: Configure →
             </Button>
           </div>
@@ -159,37 +195,48 @@ export default function DeployPage() {
                 <div>
                   <p className="text-xs text-dark-400 mb-1">Model</p>
                   <p className="text-white font-medium">
-                    {aiModels.find(m => m.id === selectedModel)?.name}
+                    {AI_MODELS.find((m) => m.id === selectedModel)?.name}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-dark-400 mb-1">Channel</p>
                   <p className="text-white font-medium">
-                    {channels.find(c => c.id === selectedChannel)?.name}
+                    {CHANNELS.find((c) => c.id === selectedChannel)?.name}
                   </p>
                 </div>
+              </div>
+
+              {/* Service Name */}
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Agent Name</label>
+                <input
+                  type="text"
+                  value={serviceName}
+                  onChange={(e) => setServiceName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                  placeholder="my-awesome-agent"
+                  className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-dark-500 focus:border-primary-500 focus:outline-none"
+                />
+                <p className="text-xs text-dark-500 mt-1">Lowercase letters, numbers, and hyphens only</p>
               </div>
 
               {/* Tier selection */}
               <div>
                 <label className="block text-sm font-medium text-white mb-3">Select Plan</label>
                 <div className="grid grid-cols-3 gap-3">
-                  {['free', 'pro', 'elite'].map((tier) => (
+                  {PRICING_TIERS.map((tier) => (
                     <button
-                      key={tier}
-                      onClick={() => setSelectedTier(tier)}
+                      key={tier.tier}
+                      onClick={() => setSelectedTier(tier.tier)}
                       className={`
                         p-4 rounded-xl border text-center transition-all
-                        ${selectedTier === tier
+                        ${selectedTier === tier.tier
                           ? 'border-primary-500/50 bg-primary-500/5'
                           : 'border-dark-700/50 bg-dark-800/30 hover:border-dark-600'
                         }
                       `}
                     >
-                      <p className="font-semibold text-white capitalize">{tier}</p>
-                      <p className="text-xs text-dark-400 mt-1">
-                        {tier === 'free' ? '$0/mo' : tier === 'pro' ? '$29.99/mo' : '$99.99/mo'}
-                      </p>
+                      <p className="font-semibold text-white">{tier.name}</p>
+                      <p className="text-xs text-dark-400 mt-1">{tier.priceLabel}</p>
                     </button>
                   ))}
                 </div>
@@ -198,10 +245,14 @@ export default function DeployPage() {
               {/* Region */}
               <div>
                 <label className="block text-sm font-medium text-white mb-2">Region</label>
-                <select className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-primary-500 focus:outline-none">
-                  <option value="us-central1">US Central (Iowa)</option>
-                  <option value="eu-west1">EU West (Belgium)</option>
-                  <option value="asia-east1">Asia East (Taiwan)</option>
+                <select
+                  value={selectedRegion}
+                  onChange={(e) => setSelectedRegion(e.target.value)}
+                  className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-primary-500 focus:outline-none"
+                >
+                  <option value="us-central1">🇺🇸 US Central (Iowa)</option>
+                  <option value="eu-west1">🇪🇺 EU West (Belgium)</option>
+                  <option value="ap-south1">🇮🇳 Asia Pacific (Mumbai)</option>
                 </select>
               </div>
 
@@ -212,6 +263,8 @@ export default function DeployPage() {
                 </label>
                 <input
                   type="password"
+                  value={apiToken}
+                  onChange={(e) => setApiToken(e.target.value)}
                   placeholder="sk-or-..."
                   className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-dark-500 focus:border-primary-500 focus:outline-none"
                 />
@@ -221,13 +274,11 @@ export default function DeployPage() {
           </Card>
 
           <div className="flex justify-between">
-            <Button variant="ghost" onClick={() => setStep('channel')}>
-              ← Back
-            </Button>
+            <Button variant="ghost" onClick={() => setStep('channel')}>← Back</Button>
             <Button
-              loading={deploying}
+              loading={createDeployment.isPending}
+              disabled={!canProceed.config}
               onClick={handleDeploy}
-              className="glow-primary"
             >
               🚀 Deploy Agent
             </Button>
@@ -236,7 +287,7 @@ export default function DeployPage() {
       )}
 
       {/* Deploying state */}
-      {step === 'deploying' && (
+      {createDeployment.isPending && (
         <div className="text-center py-12 animate-fade-in">
           <div className="w-16 h-16 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto mb-6" />
           <h2 className="text-xl font-semibold text-white mb-2">Deploying your agent...</h2>

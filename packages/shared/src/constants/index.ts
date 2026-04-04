@@ -5,95 +5,104 @@
  * (models, channels, pricing) and configuration defaults.
  */
 
-import type {
-  AIModel,
-  Channel,
-  PricingTier,
-  DeploymentStatus,
-  Tier,
-} from '../types';
+// ============================================================
+// DanClaw Constants - AI Models, Pricing, Regions, Channels
+// ============================================================
 
 // ─────────────────────────────────────────────
-// API Configuration
+// AI Models (OpenRouter)
 // ─────────────────────────────────────────────
 
-/**
- * Base API URL. Override at the app level via environment variables
- * (NEXT_PUBLIC_API_URL or EXPO_PUBLIC_API_URL).
- */
-export const API_BASE_URL = 'https://api.danglasses.ai';
-
-/**
- * Base WebSocket URL. Override at the app level via environment variables
- * (NEXT_PUBLIC_WS_URL or EXPO_PUBLIC_WS_URL).
- */
-export const WS_BASE_URL = 'wss://api.danglasses.ai';
-
-// ─────────────────────────────────────────────
-// AI Models (OpenRouter-compatible IDs)
-// ─────────────────────────────────────────────
+export interface AIModel {
+  id: string;
+  name: string;
+  provider: string;
+  description: string;
+  icon: string;
+}
 
 export const AI_MODELS: AIModel[] = [
   {
-    id: 'claude-3-sonnet',
-    name: 'Claude Opus 4.5',
+    id: 'anthropic/claude-3.5-sonnet',
+    name: 'Claude 3.5 Sonnet',
+    provider: 'Anthropic',
+    description: 'Best for coding, analysis, and reasoning',
+    icon: 'brain',
+  },
+  {
+    id: 'anthropic/claude-3-opus',
+    name: 'Claude 3 Opus',
     provider: 'Anthropic',
     description: 'Most capable model for complex tasks',
-    icon: '🟣',
+    icon: 'cpu',
   },
   {
-    id: 'gpt-4o',
-    name: 'GPT-5.2',
+    id: 'openai/gpt-4o',
+    name: 'GPT-4o',
     provider: 'OpenAI',
-    description: 'Fast and versatile general-purpose model',
-    icon: '🟢',
+    description: 'Fast, intelligent, multi-modal',
+    icon: 'message-square',
   },
   {
-    id: 'gemini-2-flash',
-    name: 'Gemini 3 Flash',
+    id: 'openai/gpt-4-turbo',
+    name: 'GPT-4 Turbo',
+    provider: 'OpenAI',
+    description: 'Fast and capable for complex tasks',
+    icon: 'zap',
+  },
+  {
+    id: 'google/gemini-pro-1.5',
+    name: 'Gemini Pro 1.5',
     provider: 'Google',
-    description: 'Lightning fast with huge context window',
-    icon: '🔵',
+    description: 'Long context, strong reasoning',
+    icon: 'gem',
   },
   {
-    id: 'llama-3-70b',
+    id: 'mistralai/mixtral-8x7b',
+    name: 'Mixtral 8x7B',
+    provider: 'Mistral',
+    description: 'Fast, open, efficient mixture-of-experts',
+    icon: 'layers',
+  },
+  {
+    id: 'meta-llama/llama-3-70b-instruct',
     name: 'Llama 3 70B',
     provider: 'Meta',
-    description: 'Open-source and highly customizable',
-    icon: '🟠',
+    description: 'Open source, strong performance',
+    icon: 'github',
   },
   {
-    id: 'mistral-large',
-    name: 'Mistral Large',
-    provider: 'Mistral AI',
-    description: 'European AI with strong multilingual support',
-    icon: '🔴',
+    id: 'cohere/command-r-plus',
+    name: 'Command R+',
+    provider: 'Cohere',
+    description: 'RAG and tool use optimized',
+    icon: 'book-open',
   },
-  {
-    id: 'qwen-2-72b',
-    name: 'Qwen 2.5 72B',
-    provider: 'Alibaba',
-    description: 'Excellent for code and mathematics',
-    icon: '🟡',
-  },
-];
-
-// ─────────────────────────────────────────────
-// Channels
-// ─────────────────────────────────────────────
-
-export const CHANNELS: Channel[] = [
-  { id: 'telegram', name: 'Telegram', icon: '✈️', description: 'Bot API integration', available: true },
-  { id: 'discord', name: 'Discord', icon: '🎮', description: 'Server bot integration', available: true },
-  { id: 'whatsapp', name: 'WhatsApp', icon: '💬', description: 'Business API', available: true },
-  { id: 'slack', name: 'Slack', icon: '💼', description: 'Workspace integration', available: true },
-  { id: 'web', name: 'Web Chat', icon: '🌐', description: 'Embedded widget', available: true },
-  { id: 'imessage', name: 'iMessage', icon: '🍎', description: 'Coming soon', available: false },
 ];
 
 // ─────────────────────────────────────────────
 // Pricing Tiers
 // ─────────────────────────────────────────────
+
+export interface PricingTierLimits {
+  ram: string;
+  vcpu: string;
+  storage: string;
+  uptime: string;
+  models: string;
+  agents: number;
+  team: number;
+}
+
+export interface PricingTier {
+  name: string;
+  tier: 'free' | 'pro' | 'elite';
+  price: number;
+  priceLabel: string;
+  features: string[];
+  limits: PricingTierLimits;
+  popular?: boolean;
+}
 
 export const PRICING_TIERS: PricingTier[] = [
   {
@@ -102,19 +111,18 @@ export const PRICING_TIERS: PricingTier[] = [
     price: 0,
     priceLabel: '$0/mo',
     features: [
-      '1 AI agent',
-      '50 AI models',
-      '12hrs/day uptime',
-      '512MB RAM',
-      '10GB storage',
-      'Community support',
+      '1 AI Agent',
+      'Telegram Channel',
+      '1GB RAM',
+      '100 requests/day',
+      'Community Support',
     ],
     limits: {
-      ram: '512MB',
-      vcpu: '0.25',
-      storage: '10GB',
-      uptime: '12hrs/day',
-      models: '50',
+      ram: '1GB',
+      vcpu: '0.5',
+      storage: '5GB',
+      uptime: '8hrs/day',
+      models: 'Basic models only',
       agents: 1,
       team: 1,
     },
@@ -122,25 +130,24 @@ export const PRICING_TIERS: PricingTier[] = [
   {
     name: 'Pro',
     tier: 'pro',
-    price: 29.99,
-    priceLabel: '$29.99/mo',
+    price: 29,
+    priceLabel: '$29/mo',
     popular: true,
     features: [
-      '5 AI agents',
-      '500+ AI models',
-      '24/7 uptime',
-      '4GB RAM',
-      '100GB storage',
-      'Priority support',
-      'Custom domains',
-      'Team (3 members)',
+      '5 AI Agents',
+      'All Channels',
+      '4GB RAM per agent',
+      '10,000 requests/day',
+      'All AI Models',
+      'Priority Support',
+      'Custom Branding',
     ],
     limits: {
       ram: '4GB',
       vcpu: '2',
-      storage: '100GB',
+      storage: '50GB',
       uptime: '24/7',
-      models: '500+',
+      models: 'All 500+ models',
       agents: 5,
       team: 3,
     },
@@ -148,65 +155,151 @@ export const PRICING_TIERS: PricingTier[] = [
   {
     name: 'Elite',
     tier: 'elite',
-    price: 99.99,
-    priceLabel: '$99.99/mo',
+    price: 99,
+    priceLabel: '$99/mo',
     features: [
-      '20 AI agents',
-      'All models + custom',
-      '24/7 uptime + SLA',
-      '16GB RAM',
-      '500GB storage',
-      'Dedicated support',
-      'Custom domains',
-      'Team (10 members)',
-      'Advanced analytics',
-      'White-label',
+      'Unlimited AI Agents',
+      'All Channels',
+      '16GB RAM per agent',
+      'Unlimited requests',
+      'All AI Models',
+      'Dedicated Support',
+      'Custom Branding',
+      'Advanced Analytics',
+      'Webhook Integrations',
     ],
     limits: {
       ram: '16GB',
-      vcpu: '4',
-      storage: '500GB',
+      vcpu: '8',
+      storage: '200GB',
       uptime: '24/7',
-      models: 'All + Custom',
-      agents: 20,
+      models: 'All 500+ models',
+      agents: -1, // unlimited
       team: 10,
     },
   },
 ];
 
 // ─────────────────────────────────────────────
+// Deployment Status Colors
+// ─────────────────────────────────────────────
+
+export type DeploymentStatus = 
+  | 'provisioning'
+  | 'starting'
+  | 'running'
+  | 'stopping'
+  | 'stopped'
+  | 'restarting'
+  | 'destroying'
+  | 'error';
+
+export const DEPLOYMENT_STATUS_COLORS: Record<DeploymentStatus, string> = {
+  provisioning: '#FFB020', // amber
+  starting: '#3B82F6',      // blue
+  running: '#22C55E',       // green
+  stopping: '#F97316',      // orange
+  stopped: '#6B7280',      // gray
+  restarting: '#3B82F6',    // blue
+  destroying: '#EF4444',    // red
+  error: '#EF4444',         // red
+};
+
+// ─────────────────────────────────────────────
 // Regions
 // ─────────────────────────────────────────────
 
-export const REGIONS = [
-  { id: 'us-central1', name: 'US Central', flag: '🇺🇸' },
-  { id: 'eu-west1', name: 'EU West', flag: '🇪🇺' },
-  { id: 'ap-south1', name: 'Asia Pacific', flag: '🇮🇳' },
-] as const;
+export interface Region {
+  id: string;
+  name: string;
+  flag: string;
+  available: boolean;
+}
 
-export type RegionId = typeof REGIONS[number]['id'];
+export const REGIONS: Region[] = [
+  { id: 'us-central1', name: 'US Central', flag: '🇺🇸', available: true },
+  { id: 'us-east1', name: 'US East', flag: '🇺🇸', available: true },
+  { id: 'eu-west1', name: 'Europe West', flag: '🇪🇺', available: true },
+  { id: 'eu-central1', name: 'Europe Central', flag: '🇪🇺', available: true },
+  { id: 'asia-east1', name: 'Asia East', flag: '🇯🇵', available: true },
+  { id: 'asia-south1', name: 'Asia South', flag: '🇮🇳', available: true },
+  { id: 'australia-southeast1', name: 'Australia', flag: '🇦🇺', available: true },
+];
 
 // ─────────────────────────────────────────────
-// Rate Limits (per docs/API.md)
+// Channels
 // ─────────────────────────────────────────────
 
-export const RATE_LIMITS: Record<Tier, { requests_per_min: number; messages_per_min: number }> = {
-  free: { requests_per_min: 100, messages_per_min: 10 },
-  pro: { requests_per_min: 1000, messages_per_min: 100 },
-  elite: { requests_per_min: 5000, messages_per_min: 500 },
-};
+export interface Channel {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  available: boolean;
+}
+
+export const CHANNELS: Channel[] = [
+  {
+    id: 'telegram',
+    name: 'Telegram',
+    icon: 'send',
+    description: 'Deploy to Telegram bot with seamless messaging',
+    available: true,
+  },
+  {
+    id: 'discord',
+    name: 'Discord',
+    icon: 'message-circle',
+    description: 'Add to your Discord server as a bot',
+    available: true,
+  },
+  {
+    id: 'whatsapp',
+    name: 'WhatsApp',
+    icon: 'phone',
+    description: 'Connect via WhatsApp Business API',
+    available: true,
+  },
+  {
+    id: 'slack',
+    name: 'Slack',
+    icon: 'hash',
+    description: 'Integrate with Slack workspace',
+    available: true,
+  },
+  {
+    id: 'web',
+    name: 'Web Chat',
+    icon: 'globe',
+    description: 'Embeddable chat widget for your website',
+    available: true,
+  },
+  {
+    id: 'api',
+    name: 'API',
+    icon: 'code',
+    description: 'REST API for custom integrations',
+    available: true,
+  },
+  {
+    id: 'whatsapp-cloud',
+    name: 'WhatsApp Cloud',
+    icon: 'cloud',
+    description: 'Meta WhatsApp Cloud API (no business account needed)',
+    available: true,
+  },
+];
 
 // ─────────────────────────────────────────────
-// Deployment Status Metadata
+// Activity Icons
 // ─────────────────────────────────────────────
 
-export const DEPLOYMENT_STATUS_META: Record<DeploymentStatus, { label: string; color: string }> = {
-  provisioning: { label: 'Provisioning', color: '#6366f1' },
-  starting: { label: 'Starting', color: '#6366f1' },
-  running: { label: 'Running', color: '#22c55e' },
-  stopping: { label: 'Stopping', color: '#f59e0b' },
-  stopped: { label: 'Stopped', color: '#6b7280' },
-  restarting: { label: 'Restarting', color: '#f59e0b' },
-  destroying: { label: 'Destroying', color: '#ef4444' },
-  error: { label: 'Error', color: '#ef4444' },
-};
+export const ACTIVITY_ICONS = {
+  deployment: 'rocket',
+  upgrade: 'arrow-up-circle',
+  chat: 'message-square',
+  settings: 'settings',
+  error: 'alert-circle',
+  success: 'check-circle',
+  payment: 'credit-card',
+} as const;

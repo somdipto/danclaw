@@ -5,7 +5,7 @@
  * the actual SDK signatures, not a hypothetical ideal API.
  */
 
-import type { User, Tier, Deployment } from './index';
+import type { User, Tier, Deployment, Message } from './index';
 
 // ─────────────────────────────────────────────
 // Auth
@@ -121,6 +121,12 @@ export interface CancelResponse {
 
 export interface BillingPortalResponse {
   url: string;
+}
+
+/** Response from listing messages for a deployment */
+export interface ListMessagesResponse {
+  messages: Message[];
+  total: number;
 }
 
 // ─────────────────────────────────────────────

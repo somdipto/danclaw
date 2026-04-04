@@ -6,7 +6,6 @@
  */
 
 import type { DeploymentStatus } from '../types';
-import { DEPLOYMENT_STATUS_META } from '../constants';
 
 /**
  * Converts uptime in seconds to a human-readable string.
@@ -42,12 +41,34 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+const STATUS_COLORS: Record<DeploymentStatus, string> = {
+  provisioning: '#FFB020',
+  starting: '#3B82F6',
+  running: '#22C55E',
+  stopping: '#F97316',
+  stopped: '#6B7280',
+  restarting: '#3B82F6',
+  destroying: '#EF4444',
+  error: '#EF4444',
+};
+
+const STATUS_LABELS: Record<DeploymentStatus, string> = {
+  provisioning: 'Provisioning',
+  starting: 'Starting',
+  running: 'Running',
+  stopping: 'Stopping',
+  stopped: 'Stopped',
+  restarting: 'Restarting',
+  destroying: 'Destroying',
+  error: 'Error',
+};
+
 /**
  * Returns the hex color for a deployment status.
  * @example getStatusColor('running') → "#22c55e"
  */
 export function getStatusColor(status: DeploymentStatus): string {
-  return DEPLOYMENT_STATUS_META[status]?.color ?? '#6b7280';
+  return STATUS_COLORS[status] ?? '#6b7280';
 }
 
 /**
@@ -55,7 +76,7 @@ export function getStatusColor(status: DeploymentStatus): string {
  * @example getStatusLabel('provisioning') → "Provisioning"
  */
 export function getStatusLabel(status: DeploymentStatus): string {
-  return DEPLOYMENT_STATUS_META[status]?.label ?? status;
+  return STATUS_LABELS[status] ?? status;
 }
 
 /**

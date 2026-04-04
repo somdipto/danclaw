@@ -17,6 +17,7 @@ export {
   useStopDeployment,
   useRestartDeployment,
   useDestroyDeployment,
+  useMessages,
   useLogin,
   useSubscribe,
   useCancelSubscription,

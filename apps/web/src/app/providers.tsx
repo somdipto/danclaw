@@ -19,7 +19,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* @ts-expect-error — React 19 JSX types from @tanstack/react-query vs React 18 ReactNode */}
       <AuthProvider>{children}</AuthProvider>
     </QueryClientProvider>
   );

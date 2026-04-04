@@ -24,7 +24,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-dark-950 text-white antialiased">
-        {/* @ts-expect-error — React 19 types from @tanstack/react-query vs React 18 types in this app */}
         <Providers>{children}</Providers>
       </body>
     </html>

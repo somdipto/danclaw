@@ -17,6 +17,7 @@ import {
 } from '@tanstack/react-query';
 import type {
   Deployment,
+  Message,
   ApiResponse,
 } from '@danclaw/shared';
 import type {
@@ -31,6 +32,7 @@ import type {
   SubscribeRequest,
   SubscribeResponse,
   CancelResponse,
+  ListMessagesResponse,
 } from '@danclaw/shared';
 import { danclawClient } from './client';
 
@@ -47,6 +49,9 @@ export const queryKeys = {
   deployments: {
     all: ['deployments'] as const,
     detail: (id: string) => ['deployments', id] as const,
+  },
+  messages: {
+    all: (deploymentId: string) => ['messages', deploymentId] as const,
   },
 } as const;
 
@@ -181,6 +186,22 @@ export function useDestroyDeployment(
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.deployments.all });
     },
+    ...options,
+  });
+}
+
+// ─────────────────────────────────────────────
+// Message Hooks
+// ─────────────────────────────────────────────
+
+export function useMessages(
+  deploymentId: string,
+  options?: Partial<UseQueryOptions<ApiResponse<ListMessagesResponse>>>,
+) {
+  return useQuery({
+    queryKey: queryKeys.messages.all(deploymentId),
+    queryFn: () => danclawClient.getMessages(deploymentId),
+    enabled: !!deploymentId,
     ...options,
   });
 }
