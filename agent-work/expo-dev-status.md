@@ -1,41 +1,38 @@
-# Expo Developer Status
+# Expo Developer Status — DanClaw Mobile
 
-## Mobile Fixes — DanClaw / DanLab
+## Date: 2026-04-05
 
-**Agent ID:** 6e1579a6-09a5-434e-bfcb-71f884663899
+## Current State Audit ✅
 
----
+### Already Wired
+- **Dashboard** (`index.tsx`): Uses `useDeployments` + `useUserProfile` hooks ✅
+- **Deploy** (`deploy.tsx`): Uses `useCreateDeployment` mutation ✅
+- **Settings** (`settings.tsx`): Uses `useUserProfile` + `dancclawClient.updateProfile` ✅
+- **Chat List** (`chat/index.tsx`): Uses `useDeployments` ✅
+- **Chat Room** (`chat/[id].tsx`): Uses `useDeployment` + `useMessages` + `ChatWebSocket` ✅
+- **Auth** (`login.tsx`): Uses `useLogin` mutation + SecureStore token ✅
+- **Auth** (`register.tsx`): Uses `dancclawClient.register` + SecureStore token ✅
 
-## Audit Results
+### What Was Already Done
+- All screens were already wired to real API hooks from `@danclaw/api`
+- TanStack Query v5 with proper QueryClientProvider in `_layout.tsx`
+- Expo Router stack with tabs
+- `ChatWebSocket` for real-time messaging
+- Token storage via `expo-secure-store`
 
-All files read and audited. The mobile app already has substantial real API wiring in place.
+## Step 6: Provisioning Screen ✅
+- Created `apps/mobile/app/(tabs)/provisioning.tsx`
+- Polls `useDeployment` every 5 seconds via `refetchInterval`
+- Shows 4-step progress: Initializing → Building → Deploying → Running
+- Auto-navigates to chat when status = 'running'
+- Shows error state with retry when status = 'error'
 
-### Already Wired ✅
-- `index.tsx` — Uses `useDeployments` + `useUserProfile` hooks; shows loading/error states; real deployment cards
-- `deploy.tsx` — Uses `useCreateDeployment`; navigates to `/provisioning?id={depId}` on success
-- `login.tsx` — Uses `useLogin`; stores token in expo-secure-store; navigates to `/(tabs)`
-- `register.tsx` — Uses `danclawClient.register()` directly; stores token; navigates to `/(tabs)`
-- `settings.tsx` — Uses `useUserProfile`; allows updating OpenRouter token via `danclawClient.updateProfile()`
-- `chat/index.tsx` — Uses `useDeployments` for list
-- `chat/[id].tsx` — Uses `useDeployment` + `useMessages`; `ChatWebSocket` for real-time
-
-### Missing ❌
-- `provisioning.tsx` — **Does not exist** — needs to be created
-
----
-
-## Actions Taken
-
-1. [Step 6] Created `provisioning.tsx` — polls deployment status every 5s via `useDeployment`, shows progress steps, navigates to chat when `running`
-
----
+## Remaining Issues
+1. **Login/Register flow**: `useLogin` callback has `setLoading(false)` called AFTER router.replace, which is unreachable. Loading state never resets on error.
+2. **Deploy success**: Navigates to provisioning screen but the provisioning screen needs the deployment ID in route params. Verified: `router.replace(\`/(tabs)/provisioning?id=${depId}\`)` ✅
+3. **Root layout**: Needs auth guard / token restoration on app launch
 
 ## Next Steps
-- [DONE] Dashboard wired ✅
-- [DONE] Deploy wired ✅
-- [DONE] Auth wired ✅
-- [DONE] Settings wired ✅
-- [DONE] Chat wired ✅
-- [DONE] Provisioning screen created ✅
-
-**Status: ALL STEPS COMPLETE**
+- Fix auth flow: ensure token is checked on app launch and redirect to login if missing
+- Add token auto-restore on root layout mount
+- Verify all API env vars are set in Expo build config

@@ -211,7 +211,7 @@ export class DanClawClient {
     const userId = await getCurrentUserId();
     if (!userId) return { error: { code: 401, message: 'Not authenticated' } };
 
-    const { data, error } = await insforgeFetch<Deployment[]>('/api/database/records/deployments', {
+    const { data, error } = await insfetch<Deployment[]>('/api/database/records/deployments', {
       method: 'POST',
       body: { ...req, user_id: userId, status: 'provisioning', uptime: 0, memory_usage: 0, requests_today: 0, cost_this_month: 0 },
     });
@@ -224,21 +224,21 @@ export class DanClawClient {
   }
 
   async getDeployment(id: string): Promise<ApiResponse<Deployment>> {
-    const { data, error } = await insforgeFetch<Deployment>(`/api/database/records/deployments/${id}`);
+    const { data, error } = await insfetch<Deployment>(`/api/database/records/deployments/${id}`);
     if (error) return { error };
     if (!data) return { error: { code: 404, message: 'Deployment not found' } };
     return { data };
   }
 
   async listDeployments(): Promise<ApiResponse<ListDeploymentsResponse>> {
-    const { data, error } = await insforgeFetch<Deployment[]>('/api/database/records/deployments');
+    const { data, error } = await insfetch<Deployment[]>('/api/database/records/deployments');
     if (error) return { error };
     const deployments = Array.isArray(data) ? data : [];
     return { data: { deployments, total: deployments.length } };
   }
 
   async startDeployment(id: string): Promise<ApiResponse<DeploymentActionResponse>> {
-    const { error } = await insforgeFetch(`/api/database/records/deployments/${id}`, {
+    const { error } = await insfetch(`/api/database/records/deployments/${id}`, {
       method: 'PATCH',
       body: { status: 'starting' },
     });
@@ -247,7 +247,7 @@ export class DanClawClient {
   }
 
   async stopDeployment(id: string): Promise<ApiResponse<DeploymentActionResponse>> {
-    const { error } = await insforgeFetch(`/api/database/records/deployments/${id}`, {
+    const { error } = await insfetch(`/api/database/records/deployments/${id}`, {
       method: 'PATCH',
       body: { status: 'stopping' },
     });
@@ -256,7 +256,7 @@ export class DanClawClient {
   }
 
   async restartDeployment(id: string): Promise<ApiResponse<DeploymentActionResponse>> {
-    const { error } = await insforgeFetch(`/api/database/records/deployments/${id}`, {
+    const { error } = await insfetch(`/api/database/records/deployments/${id}`, {
       method: 'PATCH',
       body: { status: 'restarting' },
     });
@@ -265,7 +265,7 @@ export class DanClawClient {
   }
 
   async destroyDeployment(id: string): Promise<ApiResponse<DeploymentActionResponse>> {
-    const { error } = await insforgeFetch(`/api/database/records/deployments/${id}`, {
+    const { error } = await insfetch(`/api/database/records/deployments/${id}`, {
       method: 'DELETE',
     });
     if (error) return { error };

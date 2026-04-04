@@ -1,9 +1,8 @@
 /**
  * (tabs)/provisioning.tsx — Deployment Provisioning Screen
- * 
- * Polls deployment status every 5 seconds.
- * Shows progress steps: provisioning → building → deploying → running
- * Navigates to chat when status is 'running'.
+ *
+ * Polls deployment status every 5 seconds while provisioning.
+ * Navigates to chat when status becomes 'running'.
  */
 import React, { useEffect, useRef } from 'react';
 import {
@@ -11,150 +10,184 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useDeployment } from '@danclaw/api';
+import type { Deployment } from '@danclaw/shared';
 
-const PROVISIONING_STEPS = [
-  { key: 'provisioning', label: 'Provisioning infrastructure' },
-  { key: 'building', label: 'Building container image' },
-  { key: 'deploying', label: 'Deploying to region' },
-  { key: 'running', label: 'Ready' },
+const POLL_INTERVAL_MS = 5000;
+
+const STEPS = [
+  { key: 'pending', label: 'Initializing', icon: '⚙️' },
+  { key: 'building', label: 'Building image', icon: '📦' },
+  { key: 'deploying', label: 'Deploying', icon: '🚀' },
+  { key: 'running', label: 'Ready', icon: '✅' },
 ];
 
 function getStepIndex(status: string): number {
-  switch (status) {
-    case 'provisioning': return 0;
-    case 'building': return 1;
-    case 'deploying': return 2;
-    case 'running': return 3;
-    case 'error': return -1;
-    default: return 0;
-  }
-}
-
-function StepItem({ step, currentStep, isComplete, isError }: {
-  step: { key: string; label: string };
-  currentStep: number;
-  isComplete: boolean;
-  isError: boolean;
-}) {
-  const isCurrent = PROVISIONING_STEPS[currentStep]?.key === step.key;
-  return (
-    <View style={styles.stepItem}>
-      <View style={styles.stepLeft}>
-        <View style={[
-          styles.stepCircle,
-          isComplete && styles.stepCircleDone,
-          isCurrent && styles.stepCircleActive,
-          isError && styles.stepCircleError,
-        ]}>
-          {isComplete ? (
-            <Text style={styles.stepCheck}>✓</Text>
-          ) : isError ? (
-            <Text style={styles.stepCheck}>✗</Text>
-          ) : (
-            <Text style={styles.stepNumber}>{PROVISIONING_STEPS.indexOf(step) + 1}</Text>
-          )}
-        </View>
-        {PROVISIONING_STEPS.indexOf(step) < PROVISIONING_STEPS.length - 1 && (
-          <View style={[styles.stepLine, isComplete && styles.stepLineDone]} />
-        )}
-      </View>
-      <View style={styles.stepContent}>
-        <Text style={[
-          styles.stepLabel,
-          isCurrent && styles.stepLabelCurrent,
-          isComplete && styles.stepLabelDone,
-          isError && styles.stepLabelError,
-        ]}>
-          {step.label}
-        </Text>
-        {isCurrent && !isError && (
-          <Text style={styles.stepHint}>In progress...</Text>
-        )}
-      </View>
-    </View>
-  );
+  if (status === 'error') return -1;
+  if (status === 'pending') return 0;
+  if (status === 'building') return 1;
+  if (status === 'deploying') return 2;
+  if (status === 'running') return 3;
+  return 0;
 }
 
 export default function ProvisioningScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const hasNavigated = useRef(false);
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const navigatedRef = useRef(false);
 
-  const { data, isLoading, isError: queryError } = useDeployment(id ?? '', {
-    refetchInterval: 5000,
+  const { data, isLoading, isError, refetch } = useDeployment(id ?? '', {
+    refetchInterval: POLL_INTERVAL_MS,
   });
 
-  const deployment = data?.data;
-  const status = deployment?.status ?? 'provisioning';
-  const currentStep = getStepIndex(status);
-  const isFailed = status === 'error';
+  const deployment: Deployment | undefined = data?.data;
+  const status = deployment?.status ?? 'pending';
+  const stepIndex = getStepIndex(status);
+  const isTerminal = status === 'running' || status === 'error';
+  const isRunning = status === 'running';
 
   useEffect(() => {
-    if (!id) return;
-    if (status === 'running' && !hasNavigated.current) {
-      hasNavigated.current = true;
+    if (isRunning && !navigatedRef.current) {
+      navigatedRef.current = true;
       router.replace(`/(tabs)/chat/${id}`);
     }
-  }, [status, id, router]);
+  }, [isRunning, id, router]);
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.emoji}>🦞</Text>
-          <Text style={styles.title}>Setting Up Your Agent</Text>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.inner}>
+          {/* Header */}
+          <Text style={styles.title}>Deploying Agent</Text>
           <Text style={styles.subtitle}>
-            {isFailed
-              ? 'Something went wrong during provisioning'
-              : deployment?.service_name
-                ? `Deploying ${deployment.service_name}...`
-                : 'Deploying your agent...'}
+            {isRunning
+              ? 'Your agent is ready!'
+              : 'Setting up your AI agent, this usually takes 1–2 minutes.'}
           </Text>
-        </View>
 
-        {/* Progress Steps */}
-        <View style={styles.stepsContainer}>
-          {PROVISIONING_STEPS.map((step) => {
-            const stepIdx = PROVISIONING_STEPS.indexOf(step);
-            const isComplete = stepIdx < currentStep || (stepIdx === currentStep && status === 'running');
-            const isCurrent = stepIdx === currentStep && !isFailed;
-            return (
-              <StepItem
-                key={step.key}
-                step={step}
-                currentStep={currentStep}
-                isComplete={isComplete}
-                isError={false}
+          {/* Status indicator */}
+          <View style={styles.statusCard}>
+            {isLoading && (
+              <ActivityIndicator
+                size="large"
+                color={Colors.primary}
+                style={{ marginBottom: 16 }}
               />
-            );
-          })}
-
-          {isFailed && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>
-                {deployment?.error_message ?? 'An error occurred. Please try again.'}
+            )}
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor: isRunning
+                    ? 'rgba(34,197,94,0.15)'
+                    : isError
+                    ? 'rgba(239,68,68,0.15)'
+                    : 'rgba(99,102,241,0.15)',
+                },
+              ]}
+            >
+              <Text style={styles.statusBadgeText}>
+                {isRunning ? 'RUNNING' : status.toUpperCase()}
               </Text>
             </View>
-          )}
-        </View>
+            <Text style={styles.serviceName}>
+              {deployment?.service_name ?? 'Agent'}
+            </Text>
+          </View>
 
-        {/* Spinner / Info */}
-        <View style={styles.footer}>
-          {!isFailed && !isLoading && (
-            <ActivityIndicator size="small" color={Colors.primary} />
+          {/* Progress Steps */}
+          <View style={styles.stepsCard}>
+            {STEPS.map((step, i) => {
+              const done = i < stepIndex;
+              const active = i === stepIndex;
+              const failed = status === 'error' && i === stepIndex;
+              return (
+                <View key={step.key} style={styles.stepRow}>
+                  <View
+                    style={[
+                      styles.stepIcon,
+                      done && styles.stepDone,
+                      active && styles.stepActive,
+                      failed && styles.stepError,
+                    ]}
+                  >
+                    <Text style={styles.stepIconText}>
+                      {done ? '✓' : step.icon}
+                    </Text>
+                  </View>
+                  <View style={styles.stepContent}>
+                    <Text
+                      style={[
+                        styles.stepLabel,
+                        (done || active) && styles.stepLabelActive,
+                        failed && styles.stepLabelError,
+                      ]}
+                    >
+                      {step.label}
+                    </Text>
+                    {active && !isRunning && !failed && (
+                      <ActivityIndicator
+                        size="small"
+                        color={Colors.primary}
+                        style={{ alignSelf: 'flex-start', marginTop: 4 }}
+                      />
+                    )}
+                  </View>
+                  {i < STEPS.length - 1 && (
+                    <View
+                      style={[
+                        styles.stepLine,
+                        done && styles.stepLineDone,
+                      ]}
+                    />
+                  )}
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Error state */}
+          {status === 'error' && (
+            <View style={styles.errorCard}>
+              <Text style={styles.errorText}>
+                {deployment?.error_message ?? 'Deployment failed. Please try again.'}
+              </Text>
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={() => router.replace('/(tabs)/deploy')}
+              >
+                <Text style={styles.retryButtonText}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
           )}
-          <Text style={styles.footerText}>
-            {isLoading && 'Loading...'}
-            {!isLoading && !isFailed && 'This usually takes 1-2 minutes'}
-            {isFailed && 'Tap to retry or contact support'}
-          </Text>
+
+          {/* Running: Go to chat */}
+          {isRunning && (
+            <TouchableOpacity
+              style={styles.chatButton}
+              activeOpacity={0.8}
+              onPress={() => router.replace(`/(tabs)/chat/${id}`)}
+            >
+              <Text style={styles.chatButtonText}>💬 Start Chatting</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Cancel */}
+          {!isTerminal && (
+            <TouchableOpacity
+              style={styles.cancelButton}
+              activeOpacity={0.7}
+              onPress={() => router.replace('/(tabs)')}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
     </View>
@@ -163,60 +196,160 @@ export default function ProvisioningScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dark950 },
-  safeArea: { flex: 1, paddingHorizontal: Spacing.four },
-  header: { alignItems: 'center', marginTop: 60, marginBottom: 48 },
-  emoji: { fontSize: 56, marginBottom: 16 },
-  title: { fontSize: 24, fontWeight: '700', color: Colors.white, marginBottom: 8 },
-  subtitle: { fontSize: 14, color: Colors.dark400, textAlign: 'center' },
-  stepsContainer: { flex: 1, paddingHorizontal: 16 },
-  stepItem: { flexDirection: 'row', minHeight: 60 },
-  stepLeft: { alignItems: 'center', width: 40 },
-  stepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  safeArea: { flex: 1 },
+  inner: {
+    flex: 1,
+    paddingHorizontal: Spacing.four,
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.white,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: Colors.dark400,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 20,
+  },
+  statusCard: {
+    backgroundColor: Colors.dark800,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.dark700,
+    marginBottom: 24,
+  },
+  statusBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: Colors.white,
+  },
+  serviceName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.white,
+  },
+  stepsCard: {
+    backgroundColor: Colors.dark800,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.dark700,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    minHeight: 56,
+  },
+  stepIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.dark700,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.dark600,
+    zIndex: 1,
   },
-  stepCircleActive: {
+  stepActive: {
     backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
-  stepCircleDone: {
+  stepDone: {
     backgroundColor: Colors.secondary,
-    borderColor: Colors.secondary,
   },
-  stepCircleError: {
+  stepError: {
     backgroundColor: Colors.error,
-    borderColor: Colors.error,
   },
-  stepNumber: { fontSize: 14, fontWeight: '700', color: Colors.dark400 },
-  stepCheck: { fontSize: 14, fontWeight: '700', color: Colors.white },
-  stepLine: {
-    width: 2,
+  stepIconText: {
+    fontSize: 18,
+  },
+  stepContent: {
     flex: 1,
+    paddingLeft: 14,
+    paddingTop: 8,
+    paddingBottom: 20,
+  },
+  stepLabel: {
+    fontSize: 15,
+    color: Colors.dark400,
+    fontWeight: '500',
+  },
+  stepLabelActive: {
+    color: Colors.white,
+    fontWeight: '600',
+  },
+  stepLabelError: {
+    color: Colors.error,
+  },
+  stepLine: {
+    position: 'absolute',
+    left: 19,
+    top: 40,
+    width: 2,
+    height: 28,
     backgroundColor: Colors.dark700,
-    marginVertical: 4,
+    zIndex: 0,
   },
-  stepLineDone: { backgroundColor: Colors.secondary },
-  stepContent: { flex: 1, paddingLeft: 12, paddingTop: 4 },
-  stepLabel: { fontSize: 15, color: Colors.dark400 },
-  stepLabelCurrent: { color: Colors.white, fontWeight: '600' },
-  stepLabelDone: { color: Colors.dark400 },
-  stepLabelError: { color: Colors.error },
-  stepHint: { fontSize: 12, color: Colors.dark500, marginTop: 2 },
-  errorBox: {
+  stepLineDone: {
+    backgroundColor: Colors.secondary,
+  },
+  errorCard: {
     backgroundColor: 'rgba(239,68,68,0.1)',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.3)',
-    marginTop: 16,
+    borderColor: 'rgba(239,68,68,0.2)',
+    marginTop: 24,
+    alignItems: 'center',
   },
-  errorText: { fontSize: 14, color: Colors.error, textAlign: 'center' },
-  footer: { alignItems: 'center', paddingBottom: 40, gap: 12 },
-  footerText: { fontSize: 13, color: Colors.dark500, textAlign: 'center' },
+  errorText: {
+    fontSize: 14,
+    color: Colors.error,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: Colors.error,
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+  },
+  retryButtonText: {
+    color: Colors.white,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  chatButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 32,
+  },
+  chatButtonText: {
+    color: Colors.white,
+    fontWeight: '600',
+    fontSize: 17,
+  },
+  cancelButton: {
+    alignItems: 'center',
+    marginTop: 16,
+    paddingVertical: 12,
+  },
+  cancelButtonText: {
+    color: Colors.dark400,
+    fontSize: 15,
+  },
 });
