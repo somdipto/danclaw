@@ -1,86 +1,90 @@
 /**
  * @danclaw/api — WebSocket Chat Manager
  *
- * Manages real-time connections for agent chat using @insforge/sdk Realtime.
- * Features:
- * - Built-in reconnection logic provided by the SDK
- * - Broadcast channels for instant messaging mapped to deployments
- * - Type-safe message events
- *
- * InsForge Realtime API:
- *   - connect()           → establish WebSocket connection
- *   - subscribe(channel) → subscribe to a named channel
- *   - publish(channel, event, payload) → broadcast to channel
- *   - on(event, callback) → listen for events
- *   - unsubscribe(channel) → leave channel
- *   - disconnect()       → close WebSocket connection
+ * Real-time chat using InsForge Realtime WebSocket.
+ * 
+ * Connection URL: wss://tq33kiup.ap-southeast.insforge.app/realtime
+ * Auth: Bearer <ik_ac...> token
  */
 
 import type { WebSocketMessage } from '@danclaw/shared';
-import { insforge } from './client';
+import { INSFORGE_BASE, INSFORGE_KEY } from './client';
 
-export type ChatConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+export type ChatConnectionState = 'disconnected' | 'connecting' | 'connected';
 
 export type ChatEventHandler = (message: WebSocketMessage) => void;
 export type StateChangeHandler = (state: ChatConnectionState) => void;
 
 export class ChatWebSocket {
+  private ws: WebSocket | null = null;
   private deploymentId: string | null = null;
-  private channelName: string | null = null;
   private connectionState: ChatConnectionState = 'disconnected';
   private messageQueue: WebSocketMessage[] = [];
   private messageHandlers: Set<ChatEventHandler> = new Set();
   private stateHandlers: Set<StateChangeHandler> = new Set();
-  private messageListener: ((payload: unknown) => void) | null = null;
-
-  // ─── Public API ───
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   connect(deploymentId: string): void {
     this.deploymentId = deploymentId;
-    this.channelName = `chat:${deploymentId}`;
     this.setState('connecting');
 
-    // Connect to the realtime WebSocket server
-    insforge.realtime
-      .connect()
-      .then(() => {
-        // Subscribe to the deployment's chat channel
-        return insforge.realtime.subscribe(this.channelName!);
-      })
-      .then((response) => {
-        if (!response.ok) {
-          console.error('[ChatWebSocket] Subscribe failed:', response.error);
-          this.setState('disconnected');
-          return;
-        }
+    const wsUrl = `${INSFORGE_BASE.replace('https', 'wss')}/realtime?deployment_id=${deploymentId}&token=${INSFORGE_KEY}`;
+    
+    try {
+      this.ws = new WebSocket(wsUrl);
 
-        // Listen for broadcast messages on this channel
-        this.messageListener = (payload: unknown) => {
-          const msg = (payload as Record<string, unknown>)['message'] as WebSocketMessage | undefined;
-          if (msg) {
-            this.messageHandlers.forEach(handler => handler(msg));
-          }
-        };
-        insforge.realtime.on(this.channelName!, this.messageListener);
-
+      this.ws.onopen = () => {
         this.setState('connected');
         this.flushMessageQueue();
-      })
-      .catch((err) => {
-        console.error('[ChatWebSocket] Connection error:', err);
+      };
+
+      this.ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'message' || data.type === 'response') {
+            const msg: WebSocketMessage = {
+              type: data.type,
+              content: data.content,
+              timestamp: data.timestamp || new Date().toISOString(),
+            };
+            this.messageHandlers.forEach(handler => handler(msg));
+          }
+        } catch (e) {
+          console.error('[ChatWebSocket] Parse error:', e);
+        }
+      };
+
+      this.ws.onerror = (err) => {
+        console.error('[ChatWebSocket] Error:', err);
+      };
+
+      this.ws.onclose = () => {
         this.setState('disconnected');
-      });
+        // Auto-reconnect after 5 seconds
+        if (this.deploymentId) {
+          this.reconnectTimer = setTimeout(() => {
+            if (this.deploymentId) {
+              this.connect(this.deploymentId);
+            }
+          }, 5000);
+        }
+      };
+    } catch (err) {
+      console.error('[ChatWebSocket] Connection failed:', err);
+      this.setState('disconnected');
+    }
   }
 
   disconnect(): void {
-    if (this.channelName && this.messageListener) {
-      insforge.realtime.off(this.channelName, this.messageListener);
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
-    if (this.channelName) {
-      insforge.realtime.unsubscribe(this.channelName);
-      this.channelName = null;
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
     }
-    insforge.realtime.disconnect();
+    this.deploymentId = null;
     this.setState('disconnected');
   }
 
@@ -91,25 +95,23 @@ export class ChatWebSocket {
       timestamp: new Date().toISOString(),
     };
 
-    if (this.connectionState === 'connected' && this.channelName) {
-      // 1. Broadcast via Realtime for instant local delivery
-      insforge.realtime
-        .publish(this.channelName, 'message', { message })
-        .catch((err) => console.error('[ChatWebSocket] Publish error:', err));
-
-      // 2. Persist to Postgres database via the SDK
+    if (this.connectionState === 'connected' && this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(message));
+      // Also persist via REST API
       if (this.deploymentId) {
-        // Postgrest returns PromiseLike — wrap in Promise.resolve to get a real Promise with .catch()
-        Promise.resolve(
-          insforge.database
-            .from('messages')
-            .insert([{
-              deployment_id: this.deploymentId,
-              role: 'user',
-              type: 'message',
-              content,
-            }])
-        ).catch((err: unknown) => console.error('[ChatWebSocket] DB insert error:', err));
+        fetch(`${INSFORGE_BASE}/api/database/records/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${INSFORGE_KEY}`,
+          },
+          body: JSON.stringify({
+            deployment_id: this.deploymentId,
+            role: 'user',
+            type: 'message',
+            content,
+          }),
+        }).catch(err => console.error('[ChatWebSocket] Message persist error:', err));
       }
     } else {
       this.messageQueue.push(message);
@@ -118,49 +120,22 @@ export class ChatWebSocket {
 
   onMessage(handler: ChatEventHandler): () => void {
     this.messageHandlers.add(handler);
-    return () => {
-      this.messageHandlers.delete(handler);
-    };
+    return () => this.messageHandlers.delete(handler);
   }
 
   onStateChange(handler: StateChangeHandler): () => void {
     this.stateHandlers.add(handler);
-    return () => {
-      this.stateHandlers.delete(handler);
-    };
+    return () => this.stateHandlers.delete(handler);
   }
 
   getState(): ChatConnectionState {
     return this.connectionState;
   }
 
-  setAuthToken(): void {
-    // InsForge SDK handles auth internally; this is a no-op for backward compatibility
-  }
-
-  // ─── Internal ───
-
   private flushMessageQueue(): void {
-    while (this.messageQueue.length > 0) {
+    while (this.messageQueue.length > 0 && this.ws?.readyState === WebSocket.OPEN) {
       const msg = this.messageQueue.shift();
-      if (msg && this.channelName && this.connectionState === 'connected') {
-        insforge.realtime
-          .publish(this.channelName, 'message', { message: msg })
-          .catch((err) => console.error('[ChatWebSocket] Queue publish error:', err));
-
-        if (this.deploymentId) {
-          Promise.resolve(
-            insforge.database
-              .from('messages')
-              .insert([{
-                deployment_id: this.deploymentId,
-                role: 'user',
-                type: msg.type,
-                content: msg.content,
-              }])
-          ).catch((err: unknown) => console.error('[ChatWebSocket] Queue DB insert error:', err));
-        }
-      }
+      if (msg) this.ws.send(JSON.stringify(msg));
     }
   }
 

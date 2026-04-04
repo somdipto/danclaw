@@ -48,13 +48,13 @@ export default function LoginScreen() {
         await saveToken(result.data.token);
         router.replace('/(tabs)');
       } else if (result.error) {
-        Alert.alert('Login Failed', result.error.message);
         setLoading(false);
+        Alert.alert('Login Failed', result.error.message);
       }
     },
     onError: (err) => {
-      Alert.alert('Error', err.message || 'Something went wrong');
       setLoading(false);
+      Alert.alert('Error', err.message || 'Something went wrong');
     },
   });
 
