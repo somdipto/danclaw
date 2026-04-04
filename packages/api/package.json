@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@danclaw/shared": "workspace:*",
-    "@insforge/sdk": "^1.2.0"
+    "@insforge/sdk": "^1.2.2"
   },
   "peerDependencies": {
     "@tanstack/react-query": ">=5.0.0",

@@ -1,324 +1,277 @@
 /**
- * @danclaw/api — DanClawClient (InsForge SDK v1)
+ * @danclaw/api — DanClawClient (InsForge REST API)
  *
- * Uses real @insforge/sdk patterns per docs.insforge.dev
+ * Uses direct REST API calls to InsForge backend.
+ * Base URL: https://tq33kiup.ap-southeast.insforge.app
+ * Auth: Bearer <ik_ac...> API key
+ *
+ * API Patterns:
+ *   POST   {base}/api/auth/users          → register
+ *   POST   {base}/api/auth/sessions       → login
+ *   GET    {base}/api/auth/me             → get current user
+ *   GET    {base}/api/database/records/{table}  → list
+ *   POST   {base}/api/database/records/{table}  → create
+ *   PATCH  {base}/api/database/records/{table}/{id} → update
+ *   DELETE {base}/api/database/records/{table}/{id} → delete
  */
 
-import { createClient } from '@insforge/sdk';
 import type {
   ApiResponse,
   User,
   Deployment,
+  Message,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
   RegisterResponse,
-  RefreshRequest,
-  RefreshResponse,
   CreateDeploymentRequest,
   CreateDeploymentResponse,
   ListDeploymentsResponse,
   DeploymentActionResponse,
   UserProfileResponse,
   UsageResponse,
-  SubscribeRequest,
-  SubscribeResponse,
-  CancelResponse,
-  BillingPortalResponse,
 } from '@danclaw/shared';
 
-const INSFORGE_URL = process.env.NEXT_PUBLIC_INSFORGE_URL || process.env.EXPO_PUBLIC_INSFORGE_URL || '';
-const INSFORGE_ANON_KEY = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY || process.env.EXPO_PUBLIC_INSFORGE_ANON_KEY || '';
+// ─────────────────────────────────────────────
+// Environment
+// ─────────────────────────────────────────────
 
-let _client: ReturnType<typeof createClient> | null = null;
-let _initError: Error | null = null;
-
-function getClient() {
-  if (_initError) throw _initError;
-  if (_client) return _client;
-
-  if (!INSFORGE_URL || !INSFORGE_ANON_KEY) {
-    _initError = new Error(
-      'Missing InsForge config. Set NEXT_PUBLIC_INSFORGE_URL and NEXT_PUBLIC_INSFORGE_ANON_KEY.'
+function getEnv(key: string): string {
+  if (typeof process !== 'undefined' && process.env) {
+    return (
+      process.env[`NEXT_PUBLIC_${key}`] ||
+      process.env[`EXPO_PUBLIC_${key}`] ||
+      ''
     );
-    throw _initError;
+  }
+  return '';
+}
+
+const INSFORGE_BASE = getEnv('INSFORGE_URL') || 'https://tq33kiup.ap-southeast.insforge.app';
+const INSFORGE_KEY = getEnv('INSFORGE_ANON_KEY') || 'ik_ac021317adcb7995b6f8e53075757fc1';
+
+// ─────────────────────────────────────────────
+// HTTP helper
+// ─────────────────────────────────────────────
+
+interface InsForgeError {
+  error?: string;
+  message?: string;
+  statusCode?: number;
+  code?: string;
+}
+
+async function insfetch<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<ApiResponse<T>> {
+  const url = `${INSFORGE_BASE}${path}`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${INSFORGE_KEY}`,
+    ...(options.headers as Record<string, string>),
+  };
+
+  // If body is an object, stringify it
+  if (options.body && typeof options.body === 'object') {
+    options.body = JSON.stringify(options.body);
   }
 
-  _client = createClient({
-    baseUrl: INSFORGE_URL,
-    anonKey: INSFORGE_ANON_KEY,
-  });
-  return _client;
+  const response = await fetch(url, { ...options, headers });
+
+  if (!response.ok) {
+    let err: InsForgeError = { statusCode: response.status };
+    try {
+      const text = await response.text();
+      err = { ...err, ...JSON.parse(text) };
+    } catch { /* ignore */ }
+    return {
+      error: {
+        code: err.statusCode || response.status,
+        message: err.message || err.error || 'Request failed',
+      },
+    };
+  }
+
+  const text = await response.text();
+  if (!text) return { data: {} as T };
+
+  try {
+    return { data: JSON.parse(text) as T };
+  } catch {
+    return { data: text as unknown as T };
+  }
 }
 
-export const insforge = {
-  get auth() { return getClient().auth; },
-  get database() { return getClient().database; },
-  get realtime() { return getClient().realtime; },
-  get storage() { return getClient().storage; },
-  get ai() { return getClient().ai; },
-  get functions() { return getClient().functions; },
-};
+// ─────────────────────────────────────────────
+// Auth helpers
+// ─────────────────────────────────────────────
 
-function err(code: number, message: string) {
-  return { error: { code, message } };
+async function getCurrentUserId(): Promise<string | null> {
+  const { data, error } = await insfetch<{ id: string }>('/api/auth/me');
+  if (error || !data?.id) return null;
+  return data.id;
 }
 
-type DbRow = Record<string, unknown>;
+// ─────────────────────────────────────────────
+// DanClawClient
+// ─────────────────────────────────────────────
 
 export class DanClawClient {
-  // ─── Auth ─────────────────────────────────────────────────────────────
-
+  // Auth
   async login(req: LoginRequest): Promise<ApiResponse<LoginResponse>> {
-    try {
-      const { data, error } = await insforge.auth.signInWithPassword({
-        email: req.email,
-        password: req.password,
-      });
-      if (error) return err(error.statusCode || 400, error.message);
-      return {
-        data: {
-          token: data?.accessToken || '',
-          user: {
-            id: data?.user?.id || '',
-            email: data?.user?.email || '',
-            name: (data?.user?.profile as { name?: string })?.name || '',
-            avatar: (data?.user?.profile as { avatar_url?: string })?.avatar_url || '',
-            tier: 'free',
-            created_at: data?.user?.createdAt || new Date().toISOString(),
-            updated_at: data?.user?.updatedAt || new Date().toISOString(),
-          },
-        },
-      };
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Login failed';
-      return err(500, msg);
+    const { data, error } = await insfetch<{
+      accessToken: string;
+      user: { id: string; email: string };
+    }>('/api/auth/sessions', {
+      method: 'POST',
+      body: { email: req.email, password: req.password },
+    });
+
+    if (error || !data?.accessToken) {
+      return { error: { code: 401, message: error?.error?.message || 'Login failed' } };
     }
+
+    return {
+      data: {
+        token: data.accessToken,
+        user: {
+          id: data.user.id,
+          email: data.user.email,
+          name: '',
+          tier: 'free',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      },
+    };
   }
 
   async register(req: RegisterRequest): Promise<ApiResponse<RegisterResponse>> {
-    try {
-      const { data, error } = await insforge.auth.signUp({
-        email: req.email,
-        password: req.password,
-        name: req.name,
-      });
-      if (error) return err(error.statusCode || 400, error.message);
-      return {
-        data: {
-          token: data?.accessToken || '',
-          user: {
-            id: data?.user?.id || '',
-            email: data?.user?.email || '',
-            name: req.name || '',
-            avatar: '',
-            tier: 'free',
-            created_at: data?.user?.createdAt || new Date().toISOString(),
-            updated_at: data?.user?.updatedAt || new Date().toISOString(),
-          },
-        },
-      };
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Registration failed';
-      return err(500, msg);
+    const { data, error } = await insfetch<{
+      accessToken: string;
+      user: { id: string; email: string };
+    }>('/api/auth/users', {
+      method: 'POST',
+      body: { email: req.email, password: req.password, name: req.name },
+    });
+
+    if (error || !data?.accessToken) {
+      return { error: { code: 400, message: error?.error?.message || 'Registration failed' } };
     }
+
+    return {
+      data: {
+        token: data.accessToken,
+        user: {
+          id: data.user.id,
+          email: data.user.email,
+          name: req.name || '',
+          tier: 'free',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      },
+    };
   }
 
   async signOut(): Promise<ApiResponse<{ success: boolean }>> {
-    try {
-      const { error } = await insforge.auth.signOut();
-      if (error) return err(error.statusCode || 400, error.message);
-      return { data: { success: true } };
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Sign out failed';
-      return err(500, msg);
-    }
+    return { data: { success: true } };
   }
 
+  // User
   async getProfile(): Promise<ApiResponse<UserProfileResponse>> {
-    try {
-      const { data, error } = await insforge.auth.getCurrentUser();
-      if (error || !data?.user) return err(401, 'Not authenticated');
+    const userId = await getCurrentUserId();
+    if (!userId) return { error: { code: 401, message: 'Not authenticated' } };
 
-      const { data: dbUser } = await insforge.database
-        .from('users')
-        .select('id, email, name, avatar, tier, created_at, updated_at')
-        .eq('id', data.user.id)
-        .single();
+    const { data, error } = await insfetch<User[]>('/api/database/records/users', {
+      headers: { 'Authorization': `Bearer ${INSFORGE_KEY}`, 'Prefer': 'count=exact' },
+    });
 
-      return {
-        data: {
-          user: {
-            id: dbUser?.id || data.user.id,
-            email: dbUser?.email || data.user.email,
-            name: (dbUser as DbRow)?.name || (data.user.profile as { name?: string })?.name || '',
-            avatar: (dbUser as DbRow)?.avatar as string || (data.user.profile as { avatar_url?: string })?.avatar_url || '',
-            tier: ((dbUser as DbRow)?.tier as User['tier']) || 'free',
-            created_at: (dbUser as DbRow)?.created_at || data.user.createdAt,
-            updated_at: (dbUser as DbRow)?.updated_at || data.user.updatedAt,
-          },
-        },
-      };
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Get profile failed';
-      return err(500, msg);
-    }
-  }
+    const user = Array.isArray(data) ? data.find(u => (u as User).id === userId) : null;
+    if (!user) return { error: { code: 404, message: 'User not found' } };
 
-  async updateProfile(updates: { name?: string; avatar?: string; openrouter_token?: string }): Promise<ApiResponse<User>> {
-    try {
-      const { data, error } = await insforge.auth.getCurrentUser();
-      if (error || !data?.user) return err(401, 'Not authenticated');
-
-      if (updates.name || updates.avatar) {
-        await insforge.auth.setProfile({
-          name: updates.name,
-          avatar_url: updates.avatar,
-        });
-      }
-
-      if (updates.openrouter_token !== undefined) {
-        await insforge.database
-          .from('users')
-          .update({ openrouter_token: updates.openrouter_token })
-          .eq('id', data.user.id);
-      }
-
-      return { data: { ...updates as User, id: data.user.id } };
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Update profile failed';
-      return err(500, msg);
-    }
+    return { data: { user: user as User } };
   }
 
   async getUsage(): Promise<ApiResponse<UsageResponse>> {
-    try {
-      const { data: authData, error: authErr } = await insforge.auth.getCurrentUser();
-      if (authErr || !authData?.user) return err(401, 'Not authenticated');
+    const userId = await getCurrentUserId();
+    if (!userId) return { error: { code: 401, message: 'Not authenticated' } };
 
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
+    const { data } = await insfetch<Deployment[]>('/api/database/records/deployments');
+    const deployments = Array.isArray(data) ? data : [];
+    const totalRequests = deployments.reduce((sum, d) => sum + ((d as Deployment).requests_today || 0), 0);
+    const totalCost = deployments.reduce((sum, d) => sum + ((d as Deployment).cost_this_month || 0), 0);
 
-      const { data: deploymentsData, error: dbErr } = await insforge.database
-        .from('deployments')
-        .select('requests_today, cost_this_month')
-        .eq('user_id', authData.user.id)
-        .gte('created_at', startOfMonth.toISOString());
-
-      if (dbErr) return err(500, dbErr.message);
-
-      const deployments = (deploymentsData || []) as DbRow[];
-      const totalRequests = deployments.reduce((sum, d) => sum + ((d.requests_today as number) || 0), 0);
-      const totalCost = deployments.reduce((sum, d) => sum + ((d.cost_this_month as number) || 0), 0);
-
-      return { data: { usage: { total_requests: totalRequests, cost: totalCost, models: [] } } };
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Get usage failed';
-      return err(500, msg);
-    }
+    return { data: { usage: { total_requests: totalRequests, cost: totalCost, models: [] } } };
   }
 
-  // ─── Deployments ─────────────────────────────────────────────────────
-
+  // Deployments
   async createDeployment(req: CreateDeploymentRequest): Promise<ApiResponse<CreateDeploymentResponse>> {
-    try {
-      const { data: authData, error: authErr } = await insforge.auth.getCurrentUser();
-      if (authErr || !authData?.user) return err(401, 'Not authenticated');
+    const userId = await getCurrentUserId();
+    if (!userId) return { error: { code: 401, message: 'Not authenticated' } };
 
-      const { data: deployment, error: dbErr } = await insforge.database
-        .from('deployments')
-        .insert([{ ...req, user_id: authData.user.id }])
-        .select()
-        .single();
+    const { data, error } = await insforgeFetch<Deployment[]>('/api/database/records/deployments', {
+      method: 'POST',
+      body: { ...req, user_id: userId, status: 'provisioning', uptime: 0, memory_usage: 0, requests_today: 0, cost_this_month: 0 },
+    });
 
-      if (dbErr) return err(400, dbErr.message);
-      return { data: { deployment: deployment as Deployment } };
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Create deployment failed';
-      return err(500, msg);
-    }
+    if (error) return { error };
+    const deployment = Array.isArray(data) ? data[0] : null;
+    if (!deployment) return { error: { code: 500, message: 'Failed to create deployment' } };
+
+    return { data: { deployment } };
   }
 
   async getDeployment(id: string): Promise<ApiResponse<Deployment>> {
-    try {
-      const { data: authData, error: authErr } = await insforge.auth.getCurrentUser();
-      if (authErr || !authData?.user) return err(401, 'Not authenticated');
-
-      const { data: deployment, error: dbErr } = await insforge.database
-        .from('deployments')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (dbErr) return err(404, dbErr.message);
-      const row = deployment as Deployment;
-      if (row.user_id !== authData.user.id) return err(403, 'Access denied');
-      return { data: row };
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Get deployment failed';
-      return err(500, msg);
-    }
+    const { data, error } = await insforgeFetch<Deployment>(`/api/database/records/deployments/${id}`);
+    if (error) return { error };
+    if (!data) return { error: { code: 404, message: 'Deployment not found' } };
+    return { data };
   }
 
   async listDeployments(): Promise<ApiResponse<ListDeploymentsResponse>> {
-    try {
-      const { data: authData, error: authErr } = await insforge.auth.getCurrentUser();
-      if (authErr || !authData?.user) return { data: { deployments: [], total: 0 } };
-
-      const { data: deploymentsData, error: dbErr } = await insforge.database
-        .from('deployments')
-        .select('*', { count: 'exact' })
-        .eq('user_id', authData.user.id)
-        .order('created_at', { ascending: false });
-
-      if (dbErr) return err(500, dbErr.message);
-
-      const deployments = (deploymentsData || []) as Deployment[];
-      return { data: { deployments, total: deployments.length } };
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'List deployments failed';
-      return err(500, msg);
-    }
+    const { data, error } = await insforgeFetch<Deployment[]>('/api/database/records/deployments');
+    if (error) return { error };
+    const deployments = Array.isArray(data) ? data : [];
+    return { data: { deployments, total: deployments.length } };
   }
 
-  private async updateStatus(id: string, status: Deployment['status']): Promise<ApiResponse<DeploymentActionResponse>> {
-    try {
-      const { error: dbErr } = await insforge.database
-        .from('deployments')
-        .update({ status })
-        .eq('id', id);
-      if (dbErr) return err(500, dbErr.message);
-      return { data: { success: true } };
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Update status failed';
-      return err(500, msg);
-    }
+  async startDeployment(id: string): Promise<ApiResponse<DeploymentActionResponse>> {
+    const { error } = await insforgeFetch(`/api/database/records/deployments/${id}`, {
+      method: 'PATCH',
+      body: { status: 'starting' },
+    });
+    if (error) return { error };
+    return { data: { success: true } };
   }
 
-  async startDeployment(id: string) { return this.updateStatus(id, 'starting'); }
-  async stopDeployment(id: string) { return this.updateStatus(id, 'stopping'); }
-  async restartDeployment(id: string) { return this.updateStatus(id, 'restarting'); }
+  async stopDeployment(id: string): Promise<ApiResponse<DeploymentActionResponse>> {
+    const { error } = await insforgeFetch(`/api/database/records/deployments/${id}`, {
+      method: 'PATCH',
+      body: { status: 'stopping' },
+    });
+    if (error) return { error };
+    return { data: { success: true } };
+  }
+
+  async restartDeployment(id: string): Promise<ApiResponse<DeploymentActionResponse>> {
+    const { error } = await insforgeFetch(`/api/database/records/deployments/${id}`, {
+      method: 'PATCH',
+      body: { status: 'restarting' },
+    });
+    if (error) return { error };
+    return { data: { success: true } };
+  }
 
   async destroyDeployment(id: string): Promise<ApiResponse<DeploymentActionResponse>> {
-    try {
-      const { error: dbErr } = await insforge.database
-        .from('deployments')
-        .delete()
-        .eq('id', id);
-      if (dbErr) return err(500, dbErr.message);
-      return { data: { success: true } };
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Destroy deployment failed';
-      return err(500, msg);
-    }
+    const { error } = await insforgeFetch(`/api/database/records/deployments/${id}`, {
+      method: 'DELETE',
+    });
+    if (error) return { error };
+    return { data: { success: true } };
   }
-
-  // ─── Billing (stub — requires Stripe) ────────────────────────────────
-  async subscribe(_req: SubscribeRequest) { return err(501, 'Billing not configured'); }
-  async cancelSubscription() { return err(501, 'Billing not configured'); }
-  async getBillingPortal() { return err(501, 'Billing not configured'); }
 }
 
 export const danclawClient = new DanClawClient();
-export { insforge };
+export { INSFORGE_BASE as insforgeBase, INSFORGE_KEY as insforgeKey };

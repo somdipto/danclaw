@@ -1,58 +1,69 @@
-# DanClaw — Setup Guide
+# DanClaw — Setup & Deployment Guide
 
-## Prerequisites
-- Node.js 18+
-- pnpm 8+
-- InsForge account (insforge.dev)
-- OpenRouter account (openrouter.ai) — optional for free tier
+## Current Status
 
-## Step 1: Create InsForge Project
-1. Go to https://insforge.dev and create a free account
-2. Click "Create New Project" → your backend is ready in ~3 seconds
-3. Copy the Project ID from the URL: `https://insforge.dev/dashboard/project/<YOUR_PROJECT_ID>`
-4. Go to Settings → API Keys → copy the **Anon Key**
+**Backend: LIVE ✅**
+- InsForge project: `tq33kiup.ap-southeast.insforge.app`
+- Account: `som@danclaw.dev` (free tier)
+- Database: 1 user, 2 deployments, schema active
+- User: som@danclaw.dev | Tier: free
+- Deployments: hermes-alpha (provisioning), openclaw-001 (running)
 
-## Step 2: Push Database Schema
+**Frontend: Ready to deploy ⚡**
+- All code committed locally
+- Just needs: GitHub push → Vercel deploy
+
+---
+
+## InsForge Credentials
+
+```
+Project URL: https://tq33kiup.ap-southeast.insforge.app
+API Key: ik_ac021317adcb7995b6f8e53075757fc1
+```
+
+**REST API Pattern:**
+- Auth: `POST /api/auth/users` (register), `POST /api/auth/sessions` (login)
+- Database: `GET/POST /api/database/records/{table}`
+- Auth header: `Authorization: Bearer {api_key}`
+
+---
+
+## What You Need to Do (5 minutes)
+
+### Step 1: Push to GitHub
+
 ```bash
 cd danclaw
-npx @insforge/cli login
-npx @insforge/cli link --project-id <YOUR_PROJECT_ID>
-npx @insforge/cli db import docs/SCHEMA.sql
+git remote set-url origin https://YOUR_GITHUB_TOKEN@github.com/somdipto/danclaw.git
+git push origin main
 ```
 
-## Step 3: Install Dependencies
-```bash
-pnpm install
+Then go to **vercel.com** → Import → select danclaw repo → Deploy.
+
+### Step 2: Add Environment Variables in Vercel
+
+In Vercel dashboard → Settings → Environment Variables:
+
+```
+NEXT_PUBLIC_INSFORGE_URL = https://tq33kiup.ap-southeast.insforge.app
+NEXT_PUBLIC_INSFORGE_ANON_KEY = ik_ac021317adcb7995b6f8e53075757fc1
 ```
 
-## Step 4: Configure Environment
-```bash
-cp .env.example .env.local
-# Edit .env.local with your InsForge URL and Anon Key
-```
+Redeploy. Done!
 
-## Step 5: Run Development Servers
-```bash
-# Web (localhost:3000)
-pnpm --filter @danclaw/web dev
+### Step 3: Test
 
-# Mobile (Expo)
-pnpm --filter @danclaw/mobile start
-```
+Open your Vercel URL → Sign up → Deploy your first agent!
 
-## Step 6: Open in Browser
-Navigate to http://localhost:3000 and test:
-- Register / Login
-- Deploy an agent
-- Chat with your agent
+---
 
-## Troubleshooting
+## Database Schema (Already Active)
 
-**"Missing InsForge configuration" error**
-→ Check that `.env.local` has the correct `NEXT_PUBLIC_INSFORGE_URL` and `NEXT_PUBLIC_INSFORGE_ANON_KEY`
+Tables: users, deployments, messages, activity
+All with proper indexes and RLS policies.
 
-**Database tables not found (42501 error)**
-→ Make sure you ran `npx @insforge/cli db import docs/SCHEMA.sql`
+## OpenRouter
 
-**WebSocket connection failed**
-→ Check that InsForge Realtime is enabled in your project settings
+Get free key at: https://openrouter.ai/keys
+Add to user profile after signup.

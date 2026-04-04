@@ -179,8 +179,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       '@insforge/sdk':
-        specifier: ^1.2.0
-        version: 1.2.0
+        specifier: ^1.2.2
+        version: 1.2.2
     devDependencies:
       '@tanstack/react-query':
         specifier: ^5.50.0
@@ -993,8 +993,15 @@ packages:
     resolution: {integrity: sha512-Q+B3YVQvE8HHT78LU16+mYq2ZVMMBP92V9l25sgPLqj664N2f9ceZ+Jx7b783XuFb2JTZ/dIVzYThWb0DUgj2A==}
     engines: {node: '>=18'}
 
+  '@insforge/sdk@1.2.2':
+    resolution: {integrity: sha512-HoEeFzXj2OTFiN273DqpQvvruq6YsaftGOZ01NOIC/gFHnNQRLC3AiEcNlDWUSYqUDnxy5l3m23p5eFm/WaGTg==}
+    engines: {node: '>=18'}
+
   '@insforge/shared-schemas@1.1.44':
     resolution: {integrity: sha512-CKbLFqjvih3sBsXdXeGPFKA7VBNv8b/0UIw1pLPbyMdCc7nJQFybMwD5tFslQy55oVQGNYSBmPkABXkW8NsxCg==}
+
+  '@insforge/shared-schemas@1.1.47':
+    resolution: {integrity: sha512-lwx7ymV41l7QzqIWkZ81SnZKvudqqy0FchAiBOHp5dea37g/HCMcPxfHV/B89xY4GKLkWjF1P2Nwh58PKv7OHA==}
 
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
@@ -5964,7 +5971,21 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@insforge/sdk@1.2.2':
+    dependencies:
+      '@insforge/shared-schemas': 1.1.47
+      '@supabase/postgrest-js': 1.21.4
+      socket.io-client: 4.8.3
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
   '@insforge/shared-schemas@1.1.44':
+    dependencies:
+      zod: 3.25.76
+
+  '@insforge/shared-schemas@1.1.47':
     dependencies:
       zod: 3.25.76
 

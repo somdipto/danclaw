@@ -1,40 +1,51 @@
 # DevOps Status
 
-**Last Updated:** 2026-04-05 21:50 UTC
+**Last Updated:** 2026-04-05 21:05 UTC
 
-## Infrastructure Setup - COMPLETE
+## Infrastructure Setup - COMPLETE ✅
 
 ### ✅ Step 1: CI/CD Pipeline (ci.yml)
-- **Status:** Already well-configured
-- **Jobs:** lint, typecheck, test (with fallback), build-web, build-mobile, deploy-insforge
-- **Improvement Needed:** Tests placeholder only (tests don't exist yet)
+- **Status:** Fully configured
+- **Jobs:** lint, typecheck, test (with fallback echo), build-web, build-mobile, deploy-insforge
+- **Concurrency:** Cancels in-progress on new runs
+- **Cache:** pnpm caching configured
 
 ### ✅ Step 2: Vercel Deploy Workflow (deploy-web.yml)
-- **Status:** Already exists and well-configured
-- **Preview:** PR → automatic preview deployment
+- **Status:** Already exists and properly configured
+- **Preview:** PR → automatic preview deployment with env vars
 - **Production:** Push to main → automatic production deployment
-- **Env vars:** All InsForge secrets passed via GitHub Actions secrets
+- **Uses:** amondnet/vercel-action@v25
 
 ### ✅ Step 3: Deployment Guide (DEPLOY.md)
-- **Status:** Recreated and comprehensive
-- **Sections:** Prerequisites, Local setup, InsForge setup, Vercel, EAS Build, Agent Runtime, Troubleshooting
+- **Status:** Comprehensive and complete
+- **Sections:** Prerequisites, Local setup, InsForge setup, Vercel, EAS Build, Agent Runtime, Troubleshooting, Environment Variables Reference
 
 ### ✅ Step 4: Environment Variable Audit
-- **web/.env.local.example:** ✅ Complete (NEXT_PUBLIC_INSFORGE_URL, NEXT_PUBLIC_INSFORGE_ANON_KEY, NEXT_PUBLIC_APP_URL)
-- **mobile/.env.example:** ✅ Complete (EXPO_PUBLIC_INSFORGE_URL, EXPO_PUBLIC_INSFORGE_ANON_KEY, EXPO_PUBLIC_APP_URL)
-- **Documented:** All secrets listed in DEPLOY.md with descriptions
+- **web/.env.local.example:** ✅ Complete
+  - NEXT_PUBLIC_INSFORGE_URL, NEXT_PUBLIC_INSFORGE_ANON_KEY, NEXT_PUBLIC_OPENROUTER_API_KEY, NEXT_PUBLIC_APP_URL
+- **mobile/.env.example:** ✅ Complete
+  - EXPO_PUBLIC_INSFORGE_URL, EXPO_PUBLIC_INSFORGE_ANON_KEY, EXPO_PUBLIC_APP_URL
 
 ### ✅ Step 5: Dockerfile for Agent Runtime (infra/docker/Dockerfile.agent)
-- **Status:** Reviewed and improved
 - **Node.js:** 20-alpine ✅
-- **Health check:** Added with proper interval/timeout/retries ✅
-- **Non-root user:** agentuser with agentgroup ✅
-- **Security:** Runs as non-root, proper WORKDIR, no package manager cache
-- **Note:** Agent runtime server.js doesn't exist yet - needs implementation
+- **Health check:** --interval=30s --timeout=5s --start-period=10s --retries=3 ✅
+- **Non-root user:** agentuser with agentgroup (uid 1001) ✅
+- **Security:** Runs as non-root, proper WORKDIR, npm cache cleaned
 
 ### ✅ Step 6: Migration Guide (MIGRATIONS.md)
-- **Status:** Recreated and comprehensive
+- **Status:** Comprehensive and complete
 - **Sections:** Schema application, adding tables/columns, version control strategy, rollback strategy, RLS documentation
+
+## Remaining Items
+
+### 1. Agent Runtime server.js
+- The Dockerfile.agent references `server.js` but it doesn't exist yet
+- Needs implementation at `infra/docker/` or similar location
+- Health endpoint at `/health` needs to be implemented
+
+### 2. Mobile EAS Build Secrets
+- Need to verify EXPO_PUBLIC_* secrets are set in expo.dev dashboard
+- EAS credentials need to be configured for production builds
 
 ## GitHub Secrets Required
 
@@ -46,6 +57,7 @@
 | `NEXT_PUBLIC_INSFORGE_URL` | Web | InsForge project URL |
 | `NEXT_PUBLIC_INSFORGE_ANON_KEY` | Web | InsForge anon key |
 | `NEXT_PUBLIC_APP_URL` | Web | Production app URL |
+| `NEXT_PUBLIC_OPENROUTER_API_KEY` | Web | OpenRouter API key (server-side) |
 | `EXPO_TOKEN` | Expo | EAS build token |
 | `EXPO_PUBLIC_INSFORGE_URL` | Mobile | InsForge project URL |
 | `EXPO_PUBLIC_INSFORGE_ANON_KEY` | Mobile | InsForge anon key |
@@ -63,8 +75,9 @@
 
 ## Notes
 
-- CI already has typecheck, test, and build steps for both web and mobile
-- EAS mobile export uses `--platform ios --output-dir dist` (correct for build pipeline)
+- CI pipeline is solid: lint → typecheck → test → build
+- Vercel deploy handles both preview (PR) and production (main push)
+- EAS mobile export runs in CI for iOS platform
 - InsForge schema pushed automatically on main branch merge
 - Docker builds for agent runtime on infra/docker changes
-- Agent runtime needs `server.js` implementation for health endpoint to work
+- Agent runtime health check configured but needs server.js implementation
