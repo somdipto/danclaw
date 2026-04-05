@@ -1,17 +1,30 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React, { useState } from 'react';
-import { AuthProvider } from '@/lib/auth-context';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
-export function Providers({ children }: React.PropsWithChildren) {
+// Shadcn-inspired dark theme variables
+import { useEffect } from "react";
+
+export function ThemeInitializer() {
+  useEffect(() => {
+    document.documentElement.classList.add('dark');
+    document.documentElement.style.colorScheme = 'dark';
+  }, []);
+
+  return null;
+}
+
+export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000,
+            refetchOnWindowFocus: false,
             retry: 1,
+            staleTime: 30000,
           },
         },
       })
@@ -19,7 +32,8 @@ export function Providers({ children }: React.PropsWithChildren) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
+      <ThemeInitializer />
+      {children}
     </QueryClientProvider>
   );
 }
