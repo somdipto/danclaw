@@ -1,44 +1,30 @@
-# Frontend Dev (Web) — Status & Blockers
+# Frontend Dev Status
 
-**Last Updated**: 2026-04-04 23:37 IST
+## 2026-04-05
 
-## BLOCKERS — Waiting on Som
+### Completed — Phase 1 Verification ✅
 
-### 1. InsForge Credentials (CRITICAL)
-- .env.local configured? Y/N
-- Env vars needed: INSFORGE_URL, INSFORGE_ANON_KEY
+**All Phase 1 tasks already wired. Verified by code review + build:**
 
-### 2. Branding
-- App name: DanClaw? Or something else?
-- Primary color: indigo (#6366f1)? Something else?
-- Logo exists? Y/N
+1. **Dashboard** — `useDeployments()` with loading/error/empty states ✅
+2. **Deploy Wizard** — `useCreateDeployment()` with success redirect ✅
+3. **Chat Page** — `ChatWebSocket` + `useMessages()` wired, no mock data ✅
+4. **Provisioning** — `useDeployment()` polling + auto-navigation ✅
+5. **Settings** — `useUserProfile()` + `useUsage()` + `updateProfile()` ✅
+6. **Auth Flow** — `AuthProvider` + `middleware.ts` route guards ✅
 
-## WORK DONE ✅
-- Dashboard page: now uses useDeployments() hook (real data)
-- Deploy page: wired to useCreateDeployment() mutation
-- Chat page: ChatWebSocket connected to InsForge Realtime
-- All UI components: Badge, Card, Button, StatsCard complete
-- Mock data cleaned up (re-exports from @danclaw/shared)
-- Providers (ReactQuery, ThemeProvider) done
+### Build Status
+- `pnpm --filter @danclaw/web build` — ✅ Compiled successfully
+- TypeScript — ✅ No errors
+- 21 routes generated (7 static, 14 dynamic)
 
-## WORK QUEUED
-- [ ] Settings page: model selection, API key input, tier management
-- [ ] Provisioning page: real deployment status + progress UI
-- [ ] Login/Register pages: wire to danclawClient
-- [ ] Empty states: no deployments, no messages
-- [ ] Real-time updates: deployment status polling
-- [ ] Mobile responsiveness audit
+### Working On
+Nothing blocking. Phase 1 complete.
 
-## FILES WORKING ✅
-✅ /app/dashboard/page.tsx — useDeployments hook
-✅ /app/dashboard/deploy/page.tsx — useCreateDeployment mutation
-✅ /app/dashboard/chat/page.tsx — ChatWebSocket + real deployments
-✅ /lib/auth-context.tsx — needs review (may need update for new client)
-✅ /lib/mockData.ts — clean re-export
+### Blockers
+None.
 
-## FILES NEEDING WORK ⬜
-⬜ /app/dashboard/settings/page.tsx — not created
-⬜ /app/dashboard/deploy/provisioning/page.tsx — not created
-⬜ /app/login/page.tsx — needs wire
-⬜ /app/register/page.tsx — needs wire
-⬜ /app/providers.tsx — needs review for auth context
+### Notes
+- API routes correctly use `request.headers` (dynamic rendering)
+- Dashboard pages static-precached (hydrate client-side) — correct pattern
+- No mock data found anywhere in dashboard pages

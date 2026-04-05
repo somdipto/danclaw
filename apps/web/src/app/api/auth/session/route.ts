@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       token: session.accessToken,
     };
 
-    return Response.json(apiSuccess(responseData));
+    return apiSuccess(responseData);
   } catch (error: unknown) {
     console.error('[Auth/Session]', error);
     const message = error instanceof Error ? error.message : 'Internal server error';

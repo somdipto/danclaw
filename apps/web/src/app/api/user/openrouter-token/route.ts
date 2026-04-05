@@ -58,10 +58,10 @@ export async function PUT(request: NextRequest) {
       return apiError(400, error.message);
     }
 
-    return Response.json(apiSuccess({ 
+    return apiSuccess({ 
       success: true,
       message: 'OpenRouter token updated'
-    }));
+    });
   } catch (error: unknown) {
     console.error('[User/OpenRouterToken/PUT]', error);
     const message = error instanceof Error ? error.message : 'Internal server error';

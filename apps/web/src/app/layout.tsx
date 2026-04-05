@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { PropsWithChildren } from 'react';
 import './globals.css';
 import { Providers } from './providers';
 
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-dark-950 text-white antialiased">

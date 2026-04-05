@@ -1,26 +1,34 @@
-# CTO Decisions - 2026-04-04 23:55 IST
+# CTO Decisions — 2026-04-05
 
-## Decision 1: Table Naming
-- SCHEMA.sql is canonical → `activity` table (not `activity_log`)
-- Fix: All migrations and code must use `activity`
-- Backend Dev: Already fixed activity inserts to use `activity` table with `timestamp`
+## Decisions Made This Cycle
 
-## Decision 2: P0 Bug - Activity user_id Drift
-- **Problem**: `Activity` type and `activitySchema` missing `user_id`
-- **Decision**: DB Dev must fix this before Phase 1 sign-off
-- **Files**: `packages/shared/src/types/index.ts`, `packages/shared/src/validators/index.ts`
+### 1. Schema Canonical Source
+**Decision:** `docs/SCHEMA.sql` is the canonical source of truth. The migration file `001_initial_schema.sql` should be updated to match `docs/SCHEMA.sql` (rename `activity_log` → `activity`, add `public.` prefix, add RLS policies). The migration file should become an exact reflection of SCHEMA.sql after syncing.
 
-## Decision 3: Missing Indexes
-- `idx_messages_deployment_id_created_at` → HIGH priority (chat pagination)
-- `idx_activity_log_user_id_timestamp` → HIGH priority (activity feed)
-- DB Dev: Create these in next migration
+**Rationale:** SCHEMA.sql has Phase 2 tables, RLS policies, and proper `public.` namespacing. The migration file is a subset.
 
-## Decision 4: Pending CEO Decisions
-1. **Billing provider**: RevenueCat OR Stripe Connect?
-2. **Agent storage**: InsForge DB OR agent containers?
+### 2. Phase 2 Indexes
+**Decision:** Add the 3 recommended indexes to `docs/SCHEMA.sql` and create a migration `002_add_phase2_indexes.sql`.
 
-## Status
-- Phase 1: ~90% complete
-- Web backend/frontend: ✅ DONE
-- Mobile Expo: ⏳ Needs kickstart
-- P0 bugs: 2 (user_id drift in Activity type/schema)
+### 3. UI/UX Color Sync
+**Decision:** Use emerald `#10B981` as the canonical secondary green across both web and mobile. Mobile should update from `#22c55e` → `#10B981`. Dark background: standardize on `#0A0A0F` (web).
+
+### 4. Mobile Glass Effect
+**Decision:** Yes — mobile cards should use `backdrop-blur-xl` with `dark800/50` background. Native performance is fine on modern devices.
+
+### 5. Billing Provider
+**Decision:** Stripe Connect for web subscriptions. RevenueCat for mobile in-app purchases. Both write to the same `subscriptions` and `payments` tables in Phase 2.
+
+### 6. Agent Config Storage
+**Decision:** Agent configs (OpenClaw/Hermes/SwarmClaw/Paperclip) are stored as JSON in the `agents` table in InsForge DB. Agent containers read their config at startup via InsForge API. Not in container filesystem.
+
+### 7. Expo Status Labels
+**Decision:** Align Expo `provisioning.tsx` step mapping to match actual `DeploymentStatus` enum: `provisioning`, `starting`, `running`, `stopping`, `stopped`, `error`, `deleting`, `deleted`.
+
+### 8. Activity Feed (Mobile)
+**Decision:** Activity feed should call `GET /api/activity` (not yet created). Backend Dev should add this endpoint. Expo Dev should wire it once the endpoint exists.
+
+## Escalations to CEO
+- Schema drift resolution needed (activity vs activity_log)
+- Billing provider final confirmation (Stripe Connect + RevenueCat)
+- Color palette confirmation (emerald #10B981)

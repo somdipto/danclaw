@@ -93,6 +93,7 @@ Add these in GitHub repo → Settings → Secrets and variables → Actions:
 | `NEXT_PUBLIC_INSFORGE_URL` | InsForge project URL | Your InsForge project URL |
 | `NEXT_PUBLIC_INSFORGE_ANON_KEY` | InsForge anon key | Project Settings → API Keys |
 | `NEXT_PUBLIC_APP_URL` | Production app URL | Your Vercel deployment URL |
+| `NEXT_PUBLIC_OPENROUTER_API_KEY` | OpenRouter API key | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | `INSFORGE_CLI_TOKEN` | InsForge CLI token | InsForge dashboard |
 | `INSFORGE_PROJECT_ID` | InsForge project ID | From project URL |
 | `EXPO_TOKEN` | Expo token for EAS | `eas credentials --platform ios` |
@@ -246,6 +247,7 @@ The agent runtime exposes `/health` returning:
 | `EXPO_PUBLIC_INSFORGE_URL` | Yes | InsForge project URL |
 | `EXPO_PUBLIC_INSFORGE_ANON_KEY` | Yes | InsForge anonymous API key |
 | `EXPO_PUBLIC_APP_URL` | Yes | App URL for deep links |
+| `EXPO_PUBLIC_OPENROUTER_API_KEY` | No | OpenRouter key (for mobile AI features) |
 
 ### Agent Runtime
 

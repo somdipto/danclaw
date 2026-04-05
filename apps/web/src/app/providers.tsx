@@ -1,10 +1,10 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React, { Fragment, useState } from 'react';
+import React, { useState } from 'react';
 import { AuthProvider } from '@/lib/auth-context';
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children }: React.PropsWithChildren) {
   const [queryClient] = useState(
     () =>
       new QueryClient({

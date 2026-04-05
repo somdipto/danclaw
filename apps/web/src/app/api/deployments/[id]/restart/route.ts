@@ -91,10 +91,10 @@ export async function POST(
       console.warn('[Deployments/:id/restart] Activity log:', actErr);
     }
 
-    return Response.json(apiSuccess<DeploymentActionResponse>({
+    return apiSuccess<DeploymentActionResponse>({
       success: true,
       message: 'Deployment restarting',
-    }));
+    });
   } catch (error: unknown) {
     console.error('[Deployments/:id/restart]', error);
     const message = error instanceof Error ? error.message : 'Internal server error';

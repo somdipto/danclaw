@@ -1,103 +1,78 @@
 import { NextRequest } from 'next/server';
-import { 
-  databaseApi, 
-  apiError, 
-  apiSuccess, 
+import {
+  databaseApi,
   parseSessionCookie,
+  apiError,
+  apiSuccess,
   isValidStatusTransition,
-  type DeploymentStatus
+  type DeploymentStatus,
 } from '@/lib/server/insforge';
-import type { Deployment, DeploymentActionResponse } from '@danclaw/shared';
+import type { Deployment } from '@danclaw/shared';
 
-/**
- * POST /api/deployments/:id/start
- * 
- * Starts a stopped deployment.
- */
+async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
+  const cookieHeader = request.headers.get('cookie');
+  const sessionToken = parseSessionCookie(cookieHeader);
+  if (!sessionToken) return null;
+
+  try {
+    const session = JSON.parse(Buffer.from(sessionToken, 'base64').toString());
+    return session.userId || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return apiError(401, 'Unauthorized');
+    }
+
     const { id } = await params;
-    const cookieHeader = request.headers.get('cookie');
-    const sessionData = parseSessionCookie(cookieHeader);
-    
-    if (!sessionData) {
-      return apiError(401, 'Not authenticated');
-    }
-    
-    let session: { accessToken?: string; userId?: string };
-    try {
-      session = JSON.parse(Buffer.from(sessionData, 'base64').toString());
-    } catch {
-      return apiError(401, 'Invalid session');
-    }
-    
-    if (!session?.accessToken || !session?.userId) {
-      return apiError(401, 'Not authenticated');
-    }
 
     // Get current deployment
-    const { data: deployment, error: fetchError } = await databaseApi.selectOne<Deployment>(
-      'deployments',
-      { id },
-      session.accessToken
-    );
+    const existing = await databaseApi.selectOne<Deployment>('deployments', {
+      id,
+      user_id: userId,
+    });
 
-    if (fetchError) {
-      return apiError(400, fetchError.message);
+    if (existing.error) {
+      return apiError(400, existing.error.message);
     }
 
-    if (!deployment) {
+    if (!existing.data) {
       return apiError(404, 'Deployment not found');
     }
 
-    if (deployment.user_id !== session.userId) {
-      return apiError(403, 'Access denied');
+    const deployment = existing.data;
+    const currentStatus = deployment.status as DeploymentStatus;
+
+    // Validate status transition
+    if (!isValidStatusTransition(currentStatus, 'starting')) {
+      return apiError(400, `Cannot start deployment from "${currentStatus}" state`);
     }
 
-    const targetStatus: DeploymentStatus = 'starting';
-    
-    if (!isValidStatusTransition(deployment.status, targetStatus)) {
-      return apiError(
-        400,
-        `Cannot start deployment from status '${deployment.status}'`
-      );
-    }
-
-    // Update status
-    const now = new Date().toISOString();
-    const { error: updateError } = await databaseApi.update(
-      'deployments',
-      { status: targetStatus, updated_at: now },
-      { id },
-      session.accessToken
+    // Update status to starting
+    const result = await databaseApi.update<Deployment>('deployments',
+      { status: 'starting' },
+      { id, user_id: userId }
     );
 
-    if (updateError) {
-      return apiError(400, updateError.message);
+    if (result.error) {
+      return apiError(400, result.error.message);
     }
 
-    // Log activity
-    try {
-      await databaseApi.insert('activity', {
-        user_id: session.userId,
-        action: 'deployment_started',
-        icon: '▶️',
-        timestamp: now,
-      }, session.accessToken);
-    } catch (actErr) {
-      console.warn('[Deployments/:id/start] Activity log:', actErr);
-    }
-
-    return Response.json(apiSuccess<DeploymentActionResponse>({
+    return apiSuccess({
       success: true,
       message: 'Deployment starting',
-    }));
-  } catch (error: unknown) {
-    console.error('[Deployments/:id/start]', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return apiError(500, message);
+      deployment: result.data[0],
+    });
+  } catch (error) {
+    console.error('[Deployments/[id]/start/POST]', error);
+    return apiError(500, 'Internal server error');
   }
 }

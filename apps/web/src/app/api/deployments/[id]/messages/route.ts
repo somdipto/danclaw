@@ -77,10 +77,10 @@ export async function GET(
       return apiError(400, msgError.message);
     }
 
-    return Response.json(apiSuccess({
+    return apiSuccess({
       messages: messages || [],
       total: messages?.length || 0,
-    }));
+    });
   } catch (error: unknown) {
     console.error('[Deployments/:id/messages/GET]', error);
     const message = error instanceof Error ? error.message : 'Internal server error';
@@ -179,10 +179,10 @@ export async function POST(
     // This endpoint creates the user message and triggers the agent response pipeline.
     // The agent response will come through the WebSocket connection.
 
-    return Response.json(apiSuccess({
+    return apiSuccess({
       message: userMessage?.[0],
       agentResponsePending: true,
-    }), { status: 201 });
+    });
   } catch (error: unknown) {
     console.error('[Deployments/:id/messages/POST]', error);
     const message = error instanceof Error ? error.message : 'Internal server error';

@@ -3,9 +3,6 @@
  *
  * Pre-built React hooks wrapping the DanClawClient.
  * Uses TanStack Query v5 conventions (queryKey arrays, mutation options).
- *
- * These hooks work identically on Next.js and React Native as long as
- * a QueryClientProvider is mounted above the component tree.
  */
 
 import {
@@ -19,8 +16,6 @@ import type {
   Deployment,
   Message,
   ApiResponse,
-} from '@danclaw/shared';
-import type {
   LoginRequest,
   LoginResponse,
   CreateDeploymentRequest,
@@ -38,7 +33,6 @@ import { danclawClient } from './client';
 
 // ─────────────────────────────────────────────
 // Query Key Factory
-// Centralized key definitions prevent cache collisions.
 // ─────────────────────────────────────────────
 
 export const queryKeys = {
@@ -219,10 +213,6 @@ export function useLogin(
 ) {
   return useMutation({
     mutationFn: (req: LoginRequest) => danclawClient.login(req),
-    onSuccess: (_result: ApiResponse<LoginResponse>) => {
-      // InsForge SDK handles auth internally via cookies/HttpOnly tokens
-      // No manual token management needed
-    },
     ...options,
   });
 }

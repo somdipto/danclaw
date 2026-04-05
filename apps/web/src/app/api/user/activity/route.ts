@@ -67,10 +67,10 @@ export async function GET(request: NextRequest) {
       timestamp: row.timestamp,
     }));
 
-    return Response.json(apiSuccess({
+    return apiSuccess({
       activities: activityList,
       total: activityList.length,
-    }));
+    });
   } catch (error: unknown) {
     console.error('[User/Activity/GET]', error);
     const message = error instanceof Error ? error.message : 'Internal server error';

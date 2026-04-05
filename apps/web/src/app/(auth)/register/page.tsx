@@ -4,9 +4,11 @@ import Link from 'next/link';
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
+import { useAuth } from '@/lib/auth-context';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isOAuthMode, setIsOAuthMode] = useState(false);
@@ -15,20 +17,9 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
 
   const handleOAuth = async (provider: 'google' | 'apple' | 'github') => {
-    setLoading(provider);
-    setError(null);
-    try {
-      const { error: oauthError } = await import('@danclaw/api').then(
-        (m) => m.insforge.auth.signInWithOAuth({ provider })
-      );
-      if (oauthError) {
-        setError(oauthError.message);
-        setLoading(null);
-      }
-    } catch {
-      setError('OAuth sign-up failed. Please try again.');
-      setLoading(null);
-    }
+    // OAuth coming soon - show message
+    setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} OAuth is coming soon. Please use email sign-up.`);
+    setLoading(null);
   };
 
   const handleEmailSubmit = async (e: FormEvent) => {
@@ -40,18 +31,11 @@ export default function RegisterPage() {
     setLoading('email');
     setError(null);
 
-    try {
-      const { error: signUpError } = await import('@danclaw/api').then(
-        (m) => m.insforge.auth.signUp({ email, password, name })
-      );
-      if (signUpError) {
-        setError(signUpError.message);
-        setLoading(null);
-        return;
-      }
+    const result = await register(email, password, name);
+    if (result.success) {
       router.push('/dashboard');
-    } catch {
-      setError('Sign-up failed. Please try again.');
+    } else {
+      setError(result.error || 'Sign-up failed. Please try again.');
       setLoading(null);
     }
   };

@@ -1,9 +1,28 @@
+'use client';
+
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { mockUsage, pricingTiers, mockUser } from '@/lib/mockData';
+import { PRICING_TIERS } from '@danclaw/shared';
+import { useUserProfile, useUsage } from '@danclaw/api';
 
 export default function BillingPage() {
-  const currentPlan = pricingTiers.find((t) => t.tier === mockUser.tier)!;
+  const { data: profileData, isLoading: profileLoading } = useUserProfile();
+  const { data: usageData } = useUsage();
+
+  const user = profileData?.data?.user;
+  const usage = usageData?.data?.usage;
+  const currentPlan = PRICING_TIERS.find((t) => t.tier === user?.tier) ?? PRICING_TIERS[0];
+
+  if (profileLoading) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+        <div className="h-8 w-48 bg-dark-800 rounded-xl animate-pulse" />
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-48 bg-dark-800 rounded-2xl animate-pulse" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
@@ -36,62 +55,51 @@ export default function BillingPage() {
       <div className="grid sm:grid-cols-3 gap-4">
         <Card>
           <p className="text-sm text-dark-400 mb-1">Active Agents</p>
-          <p className="text-3xl font-bold text-white">{mockUsage.current_month.deployments}</p>
+          <p className="text-3xl font-bold text-white">
+            {usage ? (usage.total_requests / 10).toFixed(0) : '—'}
+          </p>
           <p className="text-xs text-dark-500 mt-1">of {currentPlan.limits.agents} included</p>
         </Card>
         <Card>
-          <p className="text-sm text-dark-400 mb-1">Messages This Month</p>
-          <p className="text-3xl font-bold text-white">{mockUsage.current_month.messages.toLocaleString()}</p>
+          <p className="text-sm text-dark-400 mb-1">Requests This Month</p>
+          <p className="text-3xl font-bold text-white">
+            {usage ? usage.total_requests.toLocaleString() : '—'}
+          </p>
           <p className="text-xs text-dark-500 mt-1">across all agents</p>
         </Card>
         <Card>
           <p className="text-sm text-dark-400 mb-1">Total Cost</p>
-          <p className="text-3xl font-bold text-white">${mockUsage.current_month.cost.toFixed(2)}</p>
+          <p className="text-3xl font-bold text-white">
+            {usage ? `$${usage.cost.toFixed(2)}` : '$0.00'}
+          </p>
           <p className="text-xs text-dark-500 mt-1">this billing period</p>
         </Card>
       </div>
 
-      {/* Usage Chart (Simple bar chart) */}
-      <Card>
-        <h3 className="text-lg font-semibold text-white mb-6">Daily Usage (Last 7 Days)</h3>
-        <div className="flex items-end gap-2 h-40">
-          {mockUsage.history.map((day, i) => {
-            const maxMessages = Math.max(...mockUsage.history.map((d) => d.messages));
-            const height = (day.messages / maxMessages) * 100;
-            return (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full relative">
-                  <div
-                    className="w-full bg-primary-500/20 rounded-t-lg transition-all duration-500 hover:bg-primary-500/30"
-                    style={{ height: `${height}%`, minHeight: '8px' }}
-                  >
-                    <div
-                      className="absolute bottom-0 w-full bg-primary-500 rounded-t-lg"
-                      style={{ height: `${height * 0.6}%`, minHeight: '4px' }}
-                    />
-                  </div>
-                </div>
-                <span className="text-xs text-dark-500">
-                  {new Date(day.date).toLocaleDateString('en', { weekday: 'short' })}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
+      {/* Usage breakdown */}
+      {usage?.models && usage.models.length > 0 && (
+        <Card>
+          <h3 className="text-lg font-semibold text-white mb-4">Models Used</h3>
+          <div className="flex flex-wrap gap-2">
+            {usage.models.map((model) => (
+              <span key={model} className="px-3 py-1 rounded-full bg-dark-800 border border-dark-700 text-sm text-dark-300">
+                {model}
+              </span>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Plans comparison */}
       <div>
         <h3 className="text-lg font-semibold text-white mb-4">Available Plans</h3>
         <div className="grid md:grid-cols-3 gap-4">
-          {pricingTiers.map((tier) => {
-            const isCurrent = tier.tier === mockUser.tier;
+          {PRICING_TIERS.map((tier) => {
+            const isCurrent = tier.tier === user?.tier;
             return (
               <Card
                 key={tier.tier}
-                className={`${
-                  isCurrent ? 'border-primary-500/50' : ''
-                }`}
+                className={`${isCurrent ? 'border-primary-500/50' : ''}`}
               >
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-lg font-bold text-white">{tier.name}</h4>
@@ -140,22 +148,16 @@ export default function BillingPage() {
               </tr>
             </thead>
             <tbody>
-              {[
-                { date: 'Mar 27, 2026', desc: 'Pro Plan — Monthly', amount: '$29.99', status: 'Paid' },
-                { date: 'Feb 27, 2026', desc: 'Pro Plan — Monthly', amount: '$29.99', status: 'Paid' },
-                { date: 'Jan 27, 2026', desc: 'Pro Plan — Monthly', amount: '$29.99', status: 'Paid' },
-              ].map((payment, i) => (
-                <tr key={i} className="border-b border-dark-700/20">
-                  <td className="py-3 px-2 text-dark-300">{payment.date}</td>
-                  <td className="py-3 px-2 text-white">{payment.desc}</td>
-                  <td className="py-3 px-2 text-right text-white">{payment.amount}</td>
-                  <td className="py-3 px-2 text-right">
-                    <span className="px-2 py-0.5 rounded-full bg-secondary-500/10 text-secondary-400 text-xs">
-                      {payment.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              <tr className="border-b border-dark-700/20">
+                <td className="py-3 px-2 text-dark-300">—</td>
+                <td className="py-3 px-2 text-white">Billing integration coming soon</td>
+                <td className="py-3 px-2 text-right text-white">—</td>
+                <td className="py-3 px-2 text-right">
+                  <span className="px-2 py-0.5 rounded-full bg-dark-700 text-dark-400 text-xs">
+                    Pending
+                  </span>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>

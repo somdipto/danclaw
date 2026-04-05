@@ -58,4 +58,5 @@ npm install -g @insforge/cli
 npx @insforge/cli login
 npx @insforge/cli link --project-id <your-id>
 npx @insforge/cli db import docs/SCHEMA.sql
-```
+```Model: Qwen 3.6 Plus (Free only ✅)
+OpenRouter key saved ✅

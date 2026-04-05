@@ -176,6 +176,11 @@ export const authApi = {
 export const databaseApi = {
   /**
    * Generic SELECT query
+   * 
+   * PostgREST filter syntax:
+   * - Equality: ?column=eq.value
+   * - Order: ?order=column.asc or column.desc
+   * - Range: ?offset=0&limit=10
    */
   async select<T = Record<string, unknown>>(
     table: string,
@@ -198,10 +203,10 @@ export const databaseApi = {
       queryParams.set('limit', String(params.range.end - params.range.start + 1));
     }
 
-    // Build equality filters
+    // Build equality filters with proper PostgREST =eq. operator syntax
     if (params.eq) {
       for (const [key, value] of Object.entries(params.eq)) {
-        queryParams.set(key, String(value));
+        queryParams.set(key, `eq.${String(value)}`);
       }
     }
 
@@ -220,7 +225,7 @@ export const databaseApi = {
   },
 
   /**
-   * SELECT a single row
+   * SELECT a single row - properly uses =eq. syntax
    */
   async selectOne<T = Record<string, unknown>>(
     table: string,
@@ -229,7 +234,8 @@ export const databaseApi = {
   ): Promise<{ data: T | null; error?: InsForgeError }> {
     const queryParams = new URLSearchParams();
     for (const [key, value] of Object.entries(filters)) {
-      queryParams.set(key, String(value));
+      // PostgREST requires =eq. prefix for equality filters
+      queryParams.set(key, `eq.${String(value)}`);
     }
     queryParams.set('limit', '1');
 
@@ -280,7 +286,8 @@ export const databaseApi = {
   ): Promise<{ data: T[]; error?: InsForgeError }> {
     const queryParams = new URLSearchParams();
     for (const [key, value] of Object.entries(filters)) {
-      queryParams.set(key, String(value));
+      // PostgREST requires =eq. prefix for equality filters
+      queryParams.set(key, `eq.${String(value)}`);
     }
 
     return insforgeFetch<{ data: T[]; error?: InsForgeError }>(
@@ -303,7 +310,8 @@ export const databaseApi = {
   ): Promise<{ error?: InsForgeError }> {
     const queryParams = new URLSearchParams();
     for (const [key, value] of Object.entries(filters)) {
-      queryParams.set(key, String(value));
+      // PostgREST requires =eq. prefix for equality filters
+      queryParams.set(key, `eq.${String(value)}`);
     }
 
     return insforgeFetch<{ error?: InsForgeError }>(

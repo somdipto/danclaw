@@ -1,170 +1,137 @@
 import { NextRequest } from 'next/server';
-import { 
-  databaseApi, 
-  apiError, 
-  apiSuccess, 
-  parseSessionCookie, 
+import {
+  databaseApi,
+  parseSessionCookie,
   canCreateDeployment,
-  TIER_DEPLOYMENT_LIMITS,
-  type Tier
+  buildActivityEntry,
+  apiError,
+  apiSuccess,
 } from '@/lib/server/insforge';
 import { createDeploymentSchema } from '@danclaw/shared/validators';
-import type { 
-  CreateDeploymentRequest, 
-  CreateDeploymentResponse,
-  ListDeploymentsResponse,
-  Deployment
-} from '@danclaw/shared';
+import type { Deployment } from '@danclaw/shared';
 
-/**
- * Helper: Extract and validate session from request
- */
-async function getSessionFromRequest(request: NextRequest) {
+interface SessionData {
+  accessToken?: string;
+  userId?: string;
+  email?: string;
+  expiresAt?: number;
+}
+
+async function getSessionFromRequest(request: NextRequest): Promise<SessionData | null> {
   const cookieHeader = request.headers.get('cookie');
-  const sessionData = parseSessionCookie(cookieHeader);
-  
-  if (!sessionData) return null;
-  
+  const sessionToken = parseSessionCookie(cookieHeader);
+  if (!sessionToken) return null;
+
   try {
-    const session = JSON.parse(Buffer.from(sessionData, 'base64').toString());
-    return session;
+    return JSON.parse(Buffer.from(sessionToken, 'base64').toString()) as SessionData;
   } catch {
     return null;
   }
 }
 
-/**
- * POST /api/deployments
- * 
- * Creates a new deployment for the authenticated user.
- */
 export async function POST(request: NextRequest) {
   try {
     const session = await getSessionFromRequest(request);
-    
-    if (!session?.accessToken || !session?.userId) {
-      return apiError(401, 'Not authenticated');
+    if (!session?.userId) {
+      return apiError(401, 'Unauthorized');
     }
 
     const body = await request.json();
-
-    // Zod validation
     const parsed = createDeploymentSchema.safeParse(body);
     if (!parsed.success) {
-      return apiError(400, parsed.error.errors[0]?.message || 'Invalid request body');
+      return apiError(400, 'Invalid request body', parsed.error.message);
     }
 
-    const { service_name, tier, region, model, channel, openrouter_token } = parsed.data;
+    const { service_name, tier, region, model, channel } = parsed.data;
 
-    // Check deployment limits based on tier
-    const { data: existingDeployments } = await databaseApi.select<{ id: string }>(
+    // Check tier limits
+    const existingDeployments = await databaseApi.select<Deployment>(
       'deployments',
-      { 
-        select: 'id',
-        eq: { user_id: session.userId }
-      },
+      { eq: { user_id: session.userId } },
       session.accessToken
     );
 
-    const currentCount = existingDeployments?.length || 0;
-    
-    if (!canCreateDeployment(tier as Tier, currentCount)) {
-      return apiError(403, `Deployment limit reached for ${tier} tier. Max ${TIER_DEPLOYMENT_LIMITS[tier as Tier].maxDeployments} deployments.`);
+    if (existingDeployments.error) {
+      return apiError(500, 'Failed to check deployment limits');
     }
 
-    // Create deployment
-    const now = new Date().toISOString();
-    const { data: deployments, error } = await databaseApi.insert<Deployment>(
+    if (!canCreateDeployment(tier, existingDeployments.data.length)) {
+      return apiError(403, `Deployment limit reached for ${tier} tier`);
+    }
+
+    // Insert deployment
+    const insertData: Record<string, unknown> = {
+      user_id: session.userId,
+      service_name,
+      tier,
+      region,
+      model,
+      channel,
+      status: 'provisioning',
+    };
+
+    const result = await databaseApi.insert<Deployment>(
       'deployments',
-      {
-        user_id: session.userId,
-        service_name,
-        tier,
-        region,
-        model,
-        channel,
-        status: 'provisioning',
-        openrouter_token: openrouter_token || null,
-        created_at: now,
-        updated_at: now,
-      },
+      insertData,
       session.accessToken
     );
 
-    if (error) {
-      return apiError(400, error.message);
+    if (result.error) {
+      return apiError(400, result.error.message);
     }
 
-    if (!deployments || deployments.length === 0) {
-      return apiError(500, 'Failed to create deployment');
-    }
+    const deployment = result.data[0];
 
     // Log activity
-    try {
-      await databaseApi.insert('activity', {
-        user_id: session.userId,
-        action: 'deployment_created',
-        icon: '🚀',
-        timestamp: now,
-      }, session.accessToken);
-    } catch (actErr) {
-      console.warn('[Deployments/POST] Activity log:', actErr);
-    }
-
-    // Return 201 with the created deployment
-    return new Response(
-      JSON.stringify({ data: { deployment: deployments[0] } } as CreateDeploymentResponse),
-      { status: 201, headers: { 'Content-Type': 'application/json' } }
+    const activityEntry = buildActivityEntry(
+      `Deployed "${service_name}" agent`,
+      'rocket'
     );
-  } catch (error: unknown) {
+
+    await databaseApi.insert(
+      'activity',
+      {
+        user_id: session.userId,
+        action: activityEntry.action,
+        icon: activityEntry.icon,
+        timestamp: activityEntry.timestamp,
+      },
+      session.accessToken
+    );
+
+    return apiSuccess({ deployment });
+  } catch (error) {
     console.error('[Deployments/POST]', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return apiError(500, message);
+    return apiError(500, 'Internal server error');
   }
 }
 
-/**
- * GET /api/deployments
- * 
- * Lists all deployments for the authenticated user.
- */
 export async function GET(request: NextRequest) {
   try {
     const session = await getSessionFromRequest(request);
-    
-    if (!session?.accessToken || !session?.userId) {
-      return apiError(401, 'Not authenticated');
+    if (!session?.userId) {
+      return apiError(401, 'Unauthorized');
     }
 
-    // Check for query params
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
-    const offset = parseInt(searchParams.get('offset') || '0', 10);
-
-    const { data: deployments, error } = await databaseApi.select<Deployment>(
+    const result = await databaseApi.select<Deployment>(
       'deployments',
       {
-        select: '*',
         eq: { user_id: session.userId },
         order: { column: 'created_at', ascending: false },
-        range: { start: offset, end: offset + limit - 1 },
       },
       session.accessToken
     );
 
-    if (error) {
-      return apiError(400, error.message);
+    if (result.error) {
+      return apiError(400, result.error.message);
     }
 
-    const deploymentList = deployments || [];
-
-    return apiSuccess<ListDeploymentsResponse>({
-      deployments: deploymentList,
-      total: deploymentList.length,
+    return apiSuccess({
+      deployments: result.data,
+      total: result.data.length,
     });
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('[Deployments/GET]', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return apiError(500, message);
+    return apiError(500, 'Internal server error');
   }
 }

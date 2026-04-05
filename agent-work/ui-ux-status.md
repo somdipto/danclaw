@@ -1,50 +1,50 @@
-# UI/UX Designer — Status & Blockers
+# UI/UX Status
 
-**Last Updated**: 2026-04-04 23:37 IST
+**Last Updated**: 2026-04-05 03:45 UTC
+**Agent**: ui-ux-designer
 
-## BLOCKERS — Waiting on Som
+---
 
-### 1. Design System
-- Any existing Figma/design files?
-- Primary brand colors confirmed?
-- Logo assets?
+## Phase 1 Progress
 
-### 2. Mobile-First
-- Any mobile wireframes?
-- How does deploy wizard differ on mobile vs web?
+| Task | Status | Notes |
+|------|--------|-------|
+| 1. Design.md | ✅ Done | Colors, typography, spacing, animations, dark theme documented |
+| 2. COMPONENTS.md | ✅ Done | Badge, Button, Card, StatsCard, ProgressBar documented |
+| 3. Deploy wizard review | ✅ Done | 3 improvements identified |
+| 4. Empty/Loading states | ✅ Done | Documented in COMPONENTS.md |
+| 5. Mobile ↔ Web consistency | ✅ Done | Color mismatches found |
 
-## WORK DONE ✅
-- Design system: dark theme (indigo primary, emerald secondary, amber accent)
-- TailwindCSS v3.4 with custom color palette
-- shadcn/ui-inspired component library (Card, Badge, Button, StatsCard)
-- Responsive layouts across all pages
-- Framer Motion animations (fade-in, slide-up)
+---
 
-## WORK QUEUED
-- [ ] Create DESIGN_SYSTEM.md documenting all components + tokens
-- [ ] Mobile-specific design review (touch targets, safe areas)
-- [ ] Empty states for: no deployments, no messages, no activity
-- [ ] Loading skeletons (not spinners)
-- [ ] Error states design
-- [ ] Onboarding flow design
+## Current Sprint Issues
 
-## COMPONENT INVENTORY
-✅ Badge — status indicator (8 states)
-✅ Button — primary, ghost, destructive variants
-✅ Card — hover, glow, padding variants
-✅ StatsCard — icon, value, label, trend
-✅ Progress steps (deploy wizard)
-⬜ Input — form inputs not standardized
-⬜ Modal — confirmation dialogs not created
-⬜ Toast — notifications not created
-⬜ Skeleton — loading states not created
+### High Priority
+- ❌ **Secondary color mismatch**: Mobile `#22c55e` vs Web `#10B981` (emerald)
+- ❌ **Mobile card missing glass blur**: Uses solid `dark800` instead of `dark800/50 backdrop-blur-xl`
+- ❌ **Mobile primary button missing glow shadow**
 
-## DESIGN TOKENS
-Primary: indigo (#6366f1)
-Secondary: emerald (#22c55e)
-Accent: amber (#f59e0b)
-Background: dark-900 (#09090b)
-Surface: dark-800 (#111113)
-Border: dark-700 (#27272a)
-Text: white (#ffffff)
-Muted: dark-400 (#71717a)
+### Medium Priority
+- ⚠️ **Web deploy wizard**: No confirmation step with price estimate before deploy
+- ⚠️ **Web chat**: No message copy action
+- ⚠️ **Mobile status dots**: No pulse animation for active states
+
+---
+
+## Design Decisions Needed
+
+1. **Color palette sync**: Confirm which green to use for secondary — emerald `#10B981` (web) or green `#22c55e` (mobile current)
+2. **Dark backgrounds**: Sync `dark-950` between web `#0A0A0F` and mobile `#0C0C14`
+3. **Glass effect on mobile**: Should cards have `backdrop-blur-xl` on native?
+
+---
+
+## Recent Files
+
+- `/docs/DESIGN.md` — Design system
+- `/docs/COMPONENTS.md` — Component library
+- `/agent-work/ui-ux-2026-04-05.md` — Full design review
+
+---
+
+*Next update: 2026-04-05 05:45 UTC*

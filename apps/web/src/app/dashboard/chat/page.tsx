@@ -23,6 +23,15 @@ export default function ChatPage() {
     enabled: !!selectedDeploymentId,
   });
 
+  const selectedDeployment = deployments.find((d) => d.id === selectedDeploymentId) || runningDeployments[0];
+  const activeDepId = selectedDeployment?.id;
+
+  useEffect(() => {
+    if (activeDepId && !selectedDeploymentId) {
+      setSelectedDeploymentId(activeDepId);
+    }
+  }, [activeDepId, selectedDeploymentId]);
+
   useEffect(() => {
     if (messagesData?.data?.messages) {
       setMessages(messagesData.data.messages);
@@ -120,15 +129,6 @@ export default function ChatPage() {
       </div>
     );
   }
-
-  const selectedDeployment = runningDeployments.find((d) => d.id === selectedDeploymentId) || runningDeployments[0];
-  const activeDepId = selectedDeployment?.id;
-
-  useEffect(() => {
-    if (activeDepId && !selectedDeploymentId) {
-      setSelectedDeploymentId(activeDepId);
-    }
-  }, [activeDepId, selectedDeploymentId]);
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col animate-fade-in">

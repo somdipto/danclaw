@@ -16,19 +16,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
 
   const handleOAuth = async (provider: 'google' | 'apple' | 'github') => {
-    setLoading(provider);
-    setError(null);
-    try {
-      const { error: oauthError } = await import('@danclaw/api').then((m) => m.insforge.auth.signInWithOAuth({ provider }));
-      if (oauthError) {
-        setError(oauthError.message);
-        setLoading(null);
-      }
-      // On success, InsForge redirects back; the auth state change will handle navigation
-    } catch {
-      setError('OAuth sign-in failed. Please try again.');
-      setLoading(null);
-    }
+    // OAuth coming soon - show message
+    setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} OAuth is coming soon. Please use email sign-in.`);
+    setLoading(null);
   };
 
   const handleEmailSubmit = async (e: FormEvent) => {

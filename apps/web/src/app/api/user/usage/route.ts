@@ -1,83 +1,57 @@
 import { NextRequest } from 'next/server';
-import { 
-  databaseApi, 
-  apiError, 
-  apiSuccess, 
-  parseSessionCookie 
+import {
+  databaseApi,
+  parseSessionCookie,
+  apiError,
+  apiSuccess,
 } from '@/lib/server/insforge';
-import type { UsageResponse } from '@danclaw/shared';
+import type { Deployment, UsageResponse } from '@danclaw/shared';
 
-/**
- * GET /api/user/usage
- * 
- * Returns usage statistics for the current billing cycle.
- */
+async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
+  const cookieHeader = request.headers.get('cookie');
+  const sessionToken = parseSessionCookie(cookieHeader);
+  if (!sessionToken) return null;
+
+  try {
+    const session = JSON.parse(Buffer.from(sessionToken, 'base64').toString());
+    return session.userId || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const cookieHeader = request.headers.get('cookie');
-    const sessionData = parseSessionCookie(cookieHeader);
-    
-    if (!sessionData) {
-      return apiError(401, 'Not authenticated');
-    }
-    
-    let session: { accessToken?: string; userId?: string };
-    try {
-      session = JSON.parse(Buffer.from(sessionData, 'base64').toString());
-    } catch {
-      return apiError(401, 'Invalid session');
-    }
-    
-    if (!session?.accessToken || !session?.userId) {
-      return apiError(401, 'Not authenticated');
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return apiError(401, 'Unauthorized');
     }
 
-    // Calculate start of current billing cycle (monthly)
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    // Get all user's deployments
+    const result = await databaseApi.select<Deployment>('deployments', {
+      eq: { user_id: userId },
+    });
 
-    // Get all deployments with usage stats for current month
-    const { data: deployments, error } = await databaseApi.select<{
-      id: string;
-      requests_today: number;
-      cost_this_month: number;
-      model: string;
-    }>(
-      'deployments',
-      {
-        select: 'id, requests_today, cost_this_month, model',
-        eq: { user_id: session.userId },
-      },
-      session.accessToken
-    );
-
-    if (error) {
-      return apiError(400, error.message);
+    if (result.error) {
+      return apiError(400, result.error.message);
     }
 
-    const deploymentList = deployments || [];
+    const deployments = result.data;
 
-    // Aggregate stats
-    let totalRequests = 0;
-    let totalCost = 0;
-    const modelSet = new Set<string>();
-
-    for (const d of deploymentList) {
-      totalRequests += d.requests_today || 0;
-      totalCost += d.cost_this_month || 0;
-      if (d.model) modelSet.add(d.model);
-    }
+    // Aggregate usage
+    const totalRequests = deployments.reduce((sum, d) => sum + (d.requests_today || 0), 0);
+    const totalCost = deployments.reduce((sum, d) => sum + (d.cost_this_month || 0), 0);
+    const models = Array.from(new Set(deployments.map(d => d.model).filter(Boolean)));
 
     const usage: UsageResponse['usage'] = {
       total_requests: totalRequests,
       cost: totalCost,
-      models: Array.from(modelSet),
+      models,
     };
 
-    return Response.json(apiSuccess({ usage }));
-  } catch (error: unknown) {
+    return apiSuccess({ usage });
+  } catch (error) {
     console.error('[User/Usage/GET]', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return apiError(500, message);
+    return apiError(500, 'Internal server error');
   }
 }

@@ -126,9 +126,34 @@ export default function DashboardScreen() {
     return (
       <View style={styles.container}>
         <SafeAreaView style={styles.safeArea} edges={['top']}>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-          </View>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Header skeleton */}
+            <View style={styles.header}>
+              <View>
+                <View style={styles.skeletonLine} />
+                <View style={[styles.skeletonLine, { width: 160, height: 28, marginTop: 4 }]} />
+              </View>
+              <View style={styles.skeletonAvatar} />
+            </View>
+            {/* Stats skeleton */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.statsRow}
+            >
+              {[1,2,3,4].map(i => <View key={i} style={styles.statsCard}><View style={styles.skeletonLine} /><View style={[styles.skeletonLine, { height: 24, marginTop: 8 }]} /><View style={[styles.skeletonLine, { width: 60, height: 12, marginTop: 4 }]} /></View>)}
+            </ScrollView>
+            {/* Section header skeleton */}
+            <View style={[styles.sectionHeader, { marginTop: 8 }]}>
+              <View style={[styles.skeletonLine, { width: 100, height: 18 }]} />
+            </View>
+            {/* Deployment card skeletons */}
+            {[1,2,3].map(i => <View key={i} style={styles.deploymentCard}><View style={styles.deployRow}><View style={styles.deployIconWrap} /><View style={styles.deployInfo}><View style={[styles.skeletonLine, { width: 120, height: 16 }]} /><View style={[styles.skeletonLine, { width: 180, height: 12, marginTop: 6 }]} /></View></View></View>)}
+          </ScrollView>
         </SafeAreaView>
       </View>
     );
@@ -465,5 +490,18 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: '300',
     marginTop: -2,
+  },
+  // Skeleton / loading styles
+  skeletonLine: {
+    backgroundColor: Colors.dark700,
+    borderRadius: 6,
+    height: 14,
+    width: 100,
+  },
+  skeletonAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.dark700,
   },
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { useUserProfile, useUsage, danclawClient } from '@danclaw/api';
@@ -14,6 +14,8 @@ export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('');
   const [apiKeySaved, setApiKeySaved] = useState(false);
   const [isSavingKey, setIsSavingKey] = useState(false);
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false);
+  const [prefsSaved, setPrefsSaved] = useState(false);
   const [notifications, setNotifications] = useState({
     deployComplete: true,
     chatResponse: true,
@@ -43,6 +45,40 @@ export default function SettingsPage() {
       setIsSavingKey(false);
     }
   };
+
+  const handleSaveAiPrefs = async () => {
+    setIsSavingPrefs(true);
+    setPrefsSaved(false);
+    try {
+      // Persist AI preferences to localStorage (server-side storage TBD)
+      localStorage.setItem('ai_prefs', JSON.stringify({
+        model: selectedModel,
+        temperature,
+        max_tokens: maxTokens,
+      }));
+      setPrefsSaved(true);
+      setTimeout(() => setPrefsSaved(false), 3000);
+    } catch {
+      // handle silently
+    } finally {
+      setIsSavingPrefs(false);
+    }
+  };
+
+  // Load AI preferences from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('ai_prefs');
+      if (saved) {
+        const prefs = JSON.parse(saved);
+        if (prefs.model) setSelectedModel(prefs.model);
+        if (typeof prefs.temperature === 'number') setTemperature(prefs.temperature);
+        if (prefs.max_tokens) setMaxTokens(prefs.max_tokens);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   if (profileLoading) {
     return (
@@ -173,6 +209,21 @@ export default function SettingsPage() {
               onChange={(e) => setMaxTokens(Number(e.target.value))}
               className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-primary-500 focus:outline-none"
             />
+          </div>
+
+          {/* Save AI prefs */}
+          <div className="flex items-center gap-3 pt-2 border-t border-dark-700/30">
+            <Button
+              size="sm"
+              variant="outline"
+              loading={isSavingPrefs}
+              onClick={handleSaveAiPrefs}
+            >
+              {prefsSaved ? '✓ Saved' : 'Save AI Preferences'}
+            </Button>
+            {prefsSaved && (
+              <p className="text-xs text-secondary-400">AI preferences saved.</p>
+            )}
           </div>
         </div>
       </Card>

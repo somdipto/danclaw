@@ -1,46 +1,81 @@
-# Backend Dev Daily Log - 2026-04-05
+# Backend Dev Work Log - 2026-04-05
 
-## 01:20 UTC - Initial Analysis Complete
+**Agent:** backend-dev  
+**Runtime:** ~05:20 - 05:50 UTC
 
-### Task 1: Verify Zod Schemas - DONE
-All required schemas exist in `packages/shared/src/validators/index.ts`:
-- tierSchema, loginSchema, registerSchema, createDeploymentSchema
-- deploymentSchema, userSchema, messageSchema, webSocketMessageSchema
-- usageSchema, billingSubscriptionSchema, activitySchema
-- API request/response schemas all present
+---
 
-### Task 2: Deployments Route - ALREADY WIRED
-`apps/web/src/app/api/deployments/route.ts` already uses `databaseApi` from insforge.ts.
-No changes needed.
+## Session Summary
 
-### Task 3: Auth Routes - ALREADY WIRED
-- login/route.ts uses `authApi.signInWithPassword`
-- register/route.ts uses `authApi.signUp` + users table insert
-- session/route.ts uses `authApi.getUser`
-- logout/route.ts uses `authApi.signOut`
-All correctly wired to InsForge Auth.
+Performed initial codebase audit for Phase 1 backend tasks. All core routes and schemas were found to be already implemented with proper InsForge API integration. No code changes were required.
 
-### Task 4: All Required Routes Exist
-- /api/deployments/[id]/start ✅
-- /api/deployments/[id]/stop ✅
-- /api/deployments/[id]/restart ✅
-- /api/deployments/[id] (GET + DELETE) ✅
-- /api/deployments/[id]/messages ✅
+## WebSocket Verification
 
-### Task 5: User Routes
-- /api/user/profile - GET + PUT ✅
-- /api/user/usage - GET ✅
+InsForge realtime endpoint follows the pattern: `wss://{app}.{region}.insforge.app/realtime`
 
-### Task 6: Chat WebSocket
-`packages/api/src/websocket.ts` has `ChatWebSocket` class using `insforge.realtime`.
-SDK v1.2.0 has `realtime` module with connect(), subscribe(), publish(), on(), unsubscribe(), disconnect().
-The chat page correctly imports and uses `ChatWebSocket`.
+Current implementation (`wss://tq33kiup.ap-southeast.insforge.app/realtime`) matches this pattern ✅
 
-## Key Findings
-1. All routes are correctly wired to InsForge API
-2. SDK v1.2.0 realtime module matches what websocket.ts expects
-3. No broken imports found
-4. Session management via HttpOnly cookies is properly implemented
+## Files Analyzed
 
-## Status: ALL TASKS COMPLETE
-No blocking issues found.
+| File | Purpose |
+|------|---------|
+| `packages/shared/src/validators/index.ts` | All Zod schemas verified |
+| `packages/shared/src/types/index.ts` | Core type definitions |
+| `packages/shared/src/types/api.ts` | API request/response types |
+| `packages/shared/src/index.ts` | Barrel exports |
+| `apps/web/src/lib/server/insforge.ts` | InsForge server SDK wrapper |
+| `packages/api/src/client.ts` | DanClawClient |
+| `packages/api/src/websocket.ts` | ChatWebSocket manager |
+| `packages/api/src/hooks.ts` | TanStack Query hooks |
+
+## API Routes Reviewed
+
+### Auth (`/api/auth/*`)
+| Route | Method | Implementation |
+|-------|--------|----------------|
+| `login/route.ts` | POST | InsForge password auth via `authApi.signInWithPassword` |
+| `register/route.ts` | POST | InsForge signup + DB profile creation |
+| `session/route.ts` | GET | Token verification + extended profile |
+| `logout/route.ts` | POST | Sign out + cookie clear |
+
+### Deployments (`/api/deployments/*`)
+| Route | Method | Implementation |
+|-------|--------|----------------|
+| `route.ts` | GET | List user deployments |
+| `route.ts` | POST | Create deployment with tier limits |
+| `[id]/route.ts` | GET | Get deployment by ID |
+| `[id]/route.ts` | DELETE | Delete deployment |
+| `[id]/start/route.ts` | POST | Start with status transition validation |
+| `[id]/stop/route.ts` | POST | Stop with status transition validation |
+| `[id]/restart/route.ts` | POST | Restart with status transition validation |
+| `[id]/messages/route.ts` | GET | List messages with pagination |
+| `[id]/messages/route.ts` | POST | Send message, persist via databaseApi |
+
+### User (`/api/user/*`)
+| Route | Method | Implementation |
+|-------|--------|----------------|
+| `profile/route.ts` | GET | Fetch user profile |
+| `profile/route.ts` | PATCH | Update profile fields |
+| `usage/route.ts` | GET | Aggregate deployment usage |
+| `activity/route.ts` | GET | Activity feed |
+| `openrouter-token/route.ts` | PUT | Update OpenRouter token |
+
+## Architecture Highlights
+
+- **Session**: Base64-encoded JSON cookie (`danclaw_session`)
+- **Auth**: `authApi` wraps InsForge `/auth/v1/*` endpoints
+- **Database**: `databaseApi` wraps InsForge PostgREST (`/rest/v1/{table}`)
+- **Response envelope**: `{ data: T }` or `{ error: { code, message, details } }`
+- **Status machine**: `isValidStatusTransition` validates deployment state changes
+- **Tier limits**: `canCreateDeployment` enforces deployment limits per tier
+
+## TypeScript / Lint Check
+
+```bash
+pnpm --filter @danclaw/web exec tsc --noEmit  # ✅ No errors
+pnpm --filter @danclaw/web lint               # ✅ No warnings
+```
+
+## Conclusion
+
+All Phase 1 backend tasks are implemented and passing type checks. The codebase is well-structured with proper separation between the shared package (types/validators), the API package (client/hooks/websocket), and the Next.js app (route handlers).

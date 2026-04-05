@@ -3,7 +3,8 @@
  */
 
 // Client
-export { DanClawClient, danclawClient, insforge } from './client';
+export { DanClawClient, danclawClient } from './client';
+export { INSFORGE_BASE, INSFORGE_KEY } from './client';
 
 // Hooks
 export {
