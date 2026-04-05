@@ -5,8 +5,8 @@
  * Uses the /api/database/records/* pattern discovered from MCP.
  */
 
-const INSFORGE_URL = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://tq33kiup.ap-southeast.insforge.app';
-const INSFORGE_ANON_KEY = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY || 'ik_ac021317adcb7995b6f8e53075757fc1';
+const INSFORGE_URL = process.env.NEXT_PUBLIC_INSFORGE_URL || 'process.env.NEXT_PUBLIC_INSFORGE_URL || ''';
+const INSFORGE_ANON_KEY = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY || '${process.env.INSFORGE_ANON_KEY}';
 
 // ─────────────────────────────────────────────
 // API Caller

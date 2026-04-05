@@ -1,12 +1,7 @@
 {
-  "framework": "nextjs",
-  "buildCommand": "cd ../.. && pnpm --filter @danclaw/shared build && pnpm --filter @danclaw/api build && cd apps/web && next build",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm build",
   "outputDirectory": ".next",
-  "installCommand": "cd ../.. && pnpm install",
-  "regions": ["bom1"],
-  "env": {
-    "NEXT_PUBLIC_INSFORGE_URL": "https://tq33kiup.ap-southeast.insforge.app",
-    "NEXT_PUBLIC_INSFORGE_ANON_KEY": "ik_ac021317adcb7995b6f8e53075757fc1",
-    "NEXT_PUBLIC_OPENROUTER_KEY": "sk-or-v1-732d07f7133ebb008b29969b84d45fdae31c03d94"
-  }
+  "framework": "nextjs",
+  "installCommand": "pnpm install"
 }

@@ -1,64 +1,57 @@
 # Dependencies
 node_modules/
-.pnpm-store/
+.pnp/
+.pnp.js
 
-# Build outputs
+# Build
 .next/
+out/
 dist/
 build/
-.expo/
+.turbo/
 
 # Environment
 .env
-.env.local
-.env.*.local
+.env.*
+*.local
+!.env.example
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
+# Debug
 npm-debug.log*
+pnpm-debug.log*
 
-# Coverage
-coverage/
-.nyc_output/
+# Vercel
+.vercel
 
-# Turbo
-.turbo/
+# Next.js build
+.next/
+out/
+# Build output
+.next/
+out/
+build/
+dist/
 
 # Expo
 .expo/
+.expo-shared/
 
-# TypeScript
-*.tsbuildinfo
+# Mobile
+node_modules/
 
-# Misc
-.cache/
-.parcel-cache/
-# InsForge & AI agent skills
-.insforge
-.agent
-.agents
-.augment
-.claude
-.cline
-.github/copilot*
-.kilocode
-.qoder
-.qwen
-.roo
-.trae
-.windsurf
-.factory/
-.goose/
-.kiro/
-.pi/
-.vibe/
-skills/
-skills-lock.json
+# Any env
+*.env
+*.env.local
+*.env.production
+*.env.development
+ENV

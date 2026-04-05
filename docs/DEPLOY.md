@@ -1,310 +1,77 @@
-# DanClaw Deployment Guide
+# Deploy Guide — Zero Secrets in Code
 
-Complete deployment guide for DanClaw AI agent deployment platform.
+## Architecture
 
-## Prerequisites
-
-- **Node.js**: 20+ (LTS recommended)
-- **pnpm**: 9+ (package manager)
-- **Git**: latest version
-- **Accounts**:
-  - [InsForge.dev](https://insforge.dev) - Backend & database
-  - [Vercel](https://vercel.com) - Web hosting
-  - [Expo](https://expo.dev) - Mobile builds
-  - [OpenRouter](https://openrouter.ai) - AI models (optional for free tier)
-
----
-
-## Local Development Setup
-
-### 1. Clone and Install
-
-```bash
-git clone https://github.com/danlab-ai/danclaw.git
-cd danclaw
-pnpm install
+```
+[User] → https://danclaw.vercel.app
+                    ↓
+              Vercel (Frontend - Next.js)
+                    ↓
+          InsForge (Backend - Auth + DB + Realtime)
+                    ↓
+              OpenRouter (AI Models)
 ```
 
-### 2. InsForge Project Setup
+## Secrets — NEVER in Code
 
-1. Go to [insforge.dev](https://insforge.dev) → Create account
-2. Create New Project → Wait ~3 seconds for provisioning
-3. Copy Project ID from URL: `https://insforge.dev/dashboard/project/<PROJECT_ID>`
-4. Go to Settings → API Keys → Copy **Anon Key**
+All secrets are set via:
+1. **Vercel Dashboard** (Frontend secrets)
+2. **InsForge Dashboard** (Backend config)
+3. **Oracle Cloud** (Agent runtime)
 
-### 3. Configure Environment Variables
+### Vercel Environment Variables
+Go to https://vercel.com/som/danclaw/settings/environment-variables
+Add these:
 
-**Web app** (`apps/web/.env.local`):
-```bash
-cp apps/web/.env.local.example apps/web/.env.local
+```
+NEXT_PUBLIC_INSFORGE_URL      → Your InsForge URL
+NEXT_PUBLIC_INSFORGE_ANON_KEY → Your InsForge anon key
+NEXT_PUBLIC_OPENROUTER_KEY    → Your OpenRouter key (optional - users bring their own)
 ```
 
-Edit `apps/web/.env.local`:
-```env
-NEXT_PUBLIC_INSFORGE_URL=https://<PROJECT_ID>.insforge.dev
-NEXT_PUBLIC_INSFORGE_ANON_KEY=ik_your_anon_key_here
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
-**Mobile app** (`apps/mobile/.env.local`):
-```bash
-cp apps/mobile/.env.example apps/mobile/.env.local
-```
-
-Edit `apps/mobile/.env.local`:
-```env
-EXPO_PUBLIC_INSFORGE_URL=https://<PROJECT_ID>.insforge.dev
-EXPO_PUBLIC_INSFORGE_ANON_KEY=ik_your_anon_key_here
-EXPO_PUBLIC_APP_URL=https://danclaw.app
-```
-
-### 4. Apply Database Schema
-
-```bash
-cd danclaw
-npx @insforge/cli login
-npx @insforge/cli link --project-id <YOUR_PROJECT_ID>
-npx @insforge/cli db push --project-id <YOUR_PROJECT_ID> --schema-path docs/SCHEMA.sql
-```
-
-### 5. Run Development Servers
-
-```bash
-# Web (Next.js on localhost:3000)
-pnpm --filter @danclaw/web dev
-
-# Mobile (Expo)
-pnpm --filter @danclaw/mobile start
-```
-
----
-
-## Vercel Web Deployment
-
-### Required GitHub Secrets
-
-Add these in GitHub repo → Settings → Secrets and variables → Actions:
-
-| Secret | Description | Where to get |
-|--------|-------------|--------------|
-| `VERCEL_TOKEN` | Vercel API token | [vercel.com/account/tokens](https://vercel.com/account/tokens) |
-| `VERCEL_ORG_ID` | Vercel organization ID | Run `vercel whoami --token <token>` |
-| `VERCEL_PROJECT_ID` | Vercel project ID | Project settings in Vercel dashboard |
-| `NEXT_PUBLIC_INSFORGE_URL` | InsForge project URL | Your InsForge project URL |
-| `NEXT_PUBLIC_INSFORGE_ANON_KEY` | InsForge anon key | Project Settings → API Keys |
-| `NEXT_PUBLIC_APP_URL` | Production app URL | Your Vercel deployment URL |
-| `NEXT_PUBLIC_OPENROUTER_API_KEY` | OpenRouter API key | [openrouter.ai/keys](https://openrouter.ai/keys) |
-| `INSFORGE_CLI_TOKEN` | InsForge CLI token | InsForge dashboard |
-| `INSFORGE_PROJECT_ID` | InsForge project ID | From project URL |
-| `EXPO_TOKEN` | Expo token for EAS | `eas credentials --platform ios` |
-
-### Deploy Flow
-
-1. **PR Preview**: Merging a PR → automatic preview deployment
-2. **Production**: Push to `main` → automatic production deployment
-
-The workflow is in `.github/workflows/deploy-web.yml`.
-
-### Manual Vercel Deploy
-
-```bash
-cd apps/web
-vercel --prod
-```
-
----
-
-## EAS Build for Mobile
-
-### 1. Install EAS CLI
-
-```bash
-npm install -g eas-cli
-```
-
-### 2. Configure EAS
-
-```bash
-cd apps/mobile
-eas build:configure
-```
-
-### 3. Create EAS Secrets
-
-Add in [expo.dev](https://expo.dev) → Your project → Secrets:
-
-| Secret | Description |
-|--------|-------------|
-| `EXPO_PUBLIC_INSFORGE_URL` | InsForge project URL |
-| `EXPO_PUBLIC_INSFORGE_ANON_KEY` | InsForge anon key |
-| `EXPO_PUBLIC_APP_URL` | Production app URL |
-
-### 4. Build Commands
-
-```bash
-# Development build (local)
-eas build --platform ios --profile development --local
-
-# Development build (cloud)
-eas build --platform ios --profile development
-
-# Production build
-eas build --platform ios --profile production
-eas build --platform android --profile production
-```
-
-### 5. EAS Build JSON Configuration
-
-The `apps/mobile/eas.json` is preconfigured:
-
-```json
-{
-  "cli": {
-    "version": ">= 9.0.0"
-  },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
-      "distribution": "internal",
-      "ios": {
-        "simulator": false
-      }
-    },
-    "production": {
-      "android": {
-        "buildType": "apk"
-      }
-    }
-  },
-  "submit": {
-    "production": {
-      "android": {
-        "serviceAccountKeyPath": "./path-to-service-account.json"
-      }
-    }
-  }
-}
-```
-
----
-
-## Agent Runtime (Docker)
-
-### Dockerfile Locations
-
-- **Web app**: `Dockerfile` (root)
-- **Agent runtime**: `infra/docker/Dockerfile.agent`
-
-### Build and Run Agent
-
-```bash
-# Build image
-docker build -f infra/docker/Dockerfile.agent -t danclaw/agent:latest .
-
-# Run container
-docker run -d \
-  --name danclaw-agent \
-  -p 8080:8080 \
-  -e NODE_ENV=production \
-  -e PORT=8080 \
-  -e OPENCLAW_API_KEY=your_key \
-  -e OPENROUTER_API_KEY=your_key \
-  -e INSFORGE_URL=https://your-project.insforge.dev \
-  -e INSFORGE_ANON_KEY=ik_your_key \
-  danclaw/agent:latest
-
-# Verify health
-curl http://localhost:8080/health
-```
-
-### Health Check
-
-The agent runtime exposes `/health` returning:
-```json
-{"status":"ok","uptime":12345}
-```
-
----
-
-## Environment Variables Reference
-
-### Web App (`apps/web`)
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_INSFORGE_URL` | Yes | InsForge project URL |
-| `NEXT_PUBLIC_INSFORGE_ANON_KEY` | Yes | InsForge anonymous API key |
-| `NEXT_PUBLIC_APP_URL` | Yes | Production app URL for OAuth |
-| `INSFORGE_SERVICE_KEY` | No | Service role key (server-side only) |
-
-### Mobile App (`apps/mobile`)
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `EXPO_PUBLIC_INSFORGE_URL` | Yes | InsForge project URL |
-| `EXPO_PUBLIC_INSFORGE_ANON_KEY` | Yes | InsForge anonymous API key |
-| `EXPO_PUBLIC_APP_URL` | Yes | App URL for deep links |
-| `EXPO_PUBLIC_OPENROUTER_API_KEY` | No | OpenRouter key (for mobile AI features) |
-
-### Agent Runtime
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NODE_ENV` | Yes | Set to `production` |
-| `PORT` | Yes | Server port (default: 8080) |
-| `OPENCLAW_API_KEY` | Yes | OpenClaw API key |
-| `OPENROUTER_API_KEY` | Yes | OpenRouter API key |
-| `INSFORGE_URL` | Yes | InsForge backend URL |
-| `INSFORGE_ANON_KEY` | Yes | InsForge anonymous key |
-
----
-
-## GitHub Actions CI/CD
-
-### Workflow Files
-
-| File | Purpose |
-|------|---------|
-| `.github/workflows/ci.yml` | Lint, typecheck, test, build |
-| `.github/workflows/deploy-web.yml` | Vercel preview/production deploy |
-| `.github/workflows/docker-build.yml` | Docker image builds for agents |
-
-### CI Pipeline Stages
-
-1. **Lint** - ESLint checks
-2. **Typecheck** - TypeScript compilation
-3. **Test** - Jest/Vitest (placeholder, runs with echo fallback)
-4. **Build Web** - Next.js production build
-5. **Export Mobile** - Expo export for iOS
-6. **Deploy InsForge** - Schema push to production (main branch only)
-
-### Vercel Deploy Pipeline
-
-1. **PR** → Preview deployment with env vars from secrets
-2. **Push to main** → Production deployment
-
----
-
-## Troubleshooting
-
-### "Missing InsForge configuration"
-→ Verify `.env.local` has correct `NEXT_PUBLIC_INSFORGE_URL` and `NEXT_PUBLIC_INSFORGE_ANON_KEY`
-
-### Database tables not found (42501 error)
-→ Run: `npx @insforge/cli db push --project-id <ID> --schema-path docs/SCHEMA.sql`
-
-### Vercel deployment fails
-→ Check GitHub Secrets are correctly set
-→ Verify `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` are correct
-
-### EAS build fails
-→ Run `eas build:configure` again
-→ Check Expo secrets are set in expo.dev dashboard
-
-### Agent container health check fails
-→ Check logs: `docker logs danclaw-agent`
-→ Verify port 8080 is exposed
-→ Ensure health endpoint is implemented in server.js
+### InsForge Setup
+Already done. Your project has:
+- Users table (with RLS)
+- Deployments table 
+- Messages table
+- Activity table
+- All indexes + triggers
+
+### Oracle Cloud (Agent Runtime)
+1. Sign up at https://www.oracle.com/cloud/free/
+2. Create VM.Standard.A1.Flex shape (4 ARM CPUs, 24GB RAM — Always Free)
+3. SSH in and run:
+   ```bash
+   # Install Docker
+   curl -fsSL https://get.docker.com | sh
+   sudo usermod -aG docker $USER
+   
+   # Deploy OpenClaw
+   docker run -d --name openclaw \
+     -p 3000:3000 \
+     -e OPENROUTER_KEY=$OPENROUTER_KEY \
+     -e TELEGRAM_BOT_TOKEN=$TELEGRAM_TOKEN \
+     ghcr.io/openclaw/openclaw:latest
+   ```
+
+## Manual Deploy to Vercel (No CLI Token Needed)
+
+Since we're not storing the Vercel token:
+
+1. Push to GitHub: `git push origin main` (done ✅)
+2. Go to https://vercel.com/new
+3. Import repository: `somdipto/danclaw`
+4. Set framework preset: **Next.js**
+5. Root directory: **apps/web**
+6. Add environment variables (from above)
+7. Click **Deploy**
+
+That's it. Vercel auto-detects the monorepo structure and builds.
+
+## CI/CD (GitHub Actions)
+
+The workflow at `.github/workflows/deploy-vercel.yml` triggers on push to main.
+It uses `vercel deploy` command — but you need to add the VERCEL_TOKEN secret to your GitHub repo:
+https://github.com/somdipto/danclaw/settings/secrets/actions
+
+Or skip CI and just deploy manually — same result.

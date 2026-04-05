@@ -2,8 +2,8 @@ import type {
   User, Deployment, Message, DeploymentConfig, Activity 
 } from '@danclaw/shared';
 
-const BASE_URL = 'https://tq33kiup.ap-southeast.insforge.app';
-const ANON_KEY = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY || 'ik_ac021317adcb7995b6f8e53075757fc1';
+const BASE_URL = 'process.env.NEXT_PUBLIC_INSFORGE_URL || ''';
+const ANON_KEY = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY || '';
 
 // Qwen 3.6 Plus - the ONLY allowed model
 export const DEFAULT_MODEL = 'qwen/qwen-qwq-32b';

@@ -155,7 +155,7 @@ export default function SettingsScreen() {
                   style={styles.tokenInput}
                   value={openrouterToken}
                   onChangeText={setOpenrouterToken}
-                  placeholder="sk-or-v1-..."
+                  placeholder="sk-or-..."
                   placeholderTextColor={Colors.dark500}
                   autoCapitalize="none"
                   autoCorrect={false}

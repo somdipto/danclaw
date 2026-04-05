@@ -3,7 +3,7 @@
  *
  * Real-time chat using InsForge Realtime WebSocket.
  * 
- * Connection URL: wss://tq33kiup.ap-southeast.insforge.app/realtime
+ * Connection URL: `wss://${(process.env.NEXT_PUBLIC_INSFORGE_URL || '').replace('https://', '').replace('http://', '')}/realtime`
  * Auth: Bearer <ik_ac...> token
  */
 
