@@ -2,298 +2,306 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import { AI_MODELS, CHANNELS, PRICING_TIERS } from '@danclaw/shared';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AI_MODELS, CHANNELS, PRICING_TIERS, REGIONS } from '@danclaw/shared';
 import { useCreateDeployment } from '@danclaw/api';
+import type { Tier, DeployConfig } from '@danclaw/shared';
 
-type DeployStep = 'model' | 'channel' | 'config' | 'deploying';
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06, delayChildren: 0.1 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+};
+
+const fadeIn = {
+  initial: { opacity: 0, scale: 0.98 },
+  animate: { opacity: 1, scale: 1, transition: { duration: 0.2 } },
+  exit: { opacity: 0, scale: 0.98, transition: { duration: 0.15 } },
+};
 
 export default function DeployPage() {
   const router = useRouter();
-  const [step, setStep] = useState<DeployStep>('model');
-  const [selectedModel, setSelectedModel] = useState('');
-  const [selectedChannel, setSelectedChannel] = useState('');
-  const [selectedTier, setSelectedTier] = useState<'free' | 'pro' | 'elite'>('free');
-  const [selectedRegion, setSelectedRegion] = useState('us-central1');
-  const [serviceName, setServiceName] = useState('');
-  const [apiToken, setApiToken] = useState('');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const createDeployment = useCreateDeployment({
-    onSuccess: (result) => {
-      setErrorMessage(null);
-      if (result.data?.deployment) {
-        router.push(`/dashboard/deploy/provisioning?id=${result.data.deployment.id}`);
-      }
-    },
-    onError: (err) => {
-      setErrorMessage(err?.message || 'Failed to create deployment. Please try again.');
-    },
+  const [step, setStep] = useState<0 | 1 | 2>(0);
+  const [config, setConfig] = useState<DeployConfig>({
+    model: '',
+    channel: '',
+    tier: 'free',
+    region: 'ap-south1',
   });
 
-  const handleDeploy = async () => {
-    if (!selectedModel || !selectedChannel || !serviceName) return;
-    setErrorMessage(null);
+  const createMutation = useCreateDeployment({
+    onSuccess: () => router.push('/dashboard'),
+  });
 
-    await createDeployment.mutateAsync({
-      service_name: serviceName.toLowerCase().replace(/\s+/g, '-'),
-      model: selectedModel,
-      channel: selectedChannel,
-      tier: selectedTier,
-      region: selectedRegion,
-      openrouter_token: apiToken || undefined,
+  const handleDeploy = () => {
+    createMutation.mutate({
+      service_name: `agent-${Date.now()}`,
+      model: config.model,
+      channel: config.channel,
+      tier: config.tier as Tier,
+      region: config.region,
     });
   };
 
-  const dismissError = () => setErrorMessage(null);
-
-  const stepNumber = { model: 1, channel: 2, config: 3, deploying: 4 };
-  const steps = [
-    { key: 'model', label: 'Select Model' },
-    { key: 'channel', label: 'Select Channel' },
-    { key: 'config', label: 'Configure' },
-  ];
-
-  const canProceed = {
-    model: !!selectedModel,
-    channel: !!selectedChannel,
-    config: !!serviceName,
-  };
+  const steps = ['Select Model', 'Select Channel', 'Configure'];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+    <motion.div
+      className="max-w-4xl mx-auto space-y-8"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Deploy New Agent</h1>
-        <p className="text-dark-400 text-sm mt-1">Set up your AI agent in 3 simple steps</p>
-      </div>
+      <motion.div variants={itemVariants}>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">
+          Deploy New Agent
+        </h1>
+        <p className="text-zinc-500 text-sm mt-1">
+          Set up your AI agent in 3 simple steps
+        </p>
+      </motion.div>
 
-      {/* Progress Steps */}
-      <div className="flex items-center gap-2">
-        {steps.map((s, i) => (
-          <div key={s.key} className="flex items-center gap-2 flex-1">
-            <div
-              className={`
-                w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0
-                transition-all duration-300
-                ${stepNumber[step] > i + 1
-                  ? 'bg-secondary-500 text-white'
-                  : stepNumber[step] === i + 1
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-dark-800 text-dark-500 border border-dark-700'
-                }
-              `}
+      {/* Step Indicator */}
+      <motion.div variants={itemVariants} className="flex items-center gap-3">
+        {steps.map((label, i) => (
+          <div key={i} className="flex items-center gap-3 flex-1">
+            <motion.div
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                i < step
+                  ? 'bg-emerald-500 text-black'
+                  : i === step
+                  ? 'bg-white text-black'
+                  : 'bg-zinc-800 text-zinc-600'
+              }`}
             >
-              {stepNumber[step] > i + 1 ? '✓' : i + 1}
-            </div>
-            <span className={`text-sm hidden sm:block ${stepNumber[step] >= i + 1 ? 'text-white' : 'text-dark-500'}`}>
-              {s.label}
+              {i < step ? '✓' : i + 1}
+            </motion.div>
+            <span
+              className={`text-sm hidden sm:block ${
+                i <= step ? 'text-zinc-400' : 'text-zinc-700'
+              }`}
+            >
+              {label}
             </span>
             {i < steps.length - 1 && (
-              <div className={`flex-1 h-px ${stepNumber[step] > i + 1 ? 'bg-secondary-500' : 'bg-dark-700'}`} />
+              <div className={`flex-1 h-px ${i < step ? 'bg-zinc-600' : 'bg-zinc-800'}`} />
             )}
           </div>
         ))}
-      </div>
+      </motion.div>
 
-      {/* Error Banner */}
-      {errorMessage && (
-        <div className="flex items-center justify-between p-4 rounded-xl bg-red-500/10 border border-red-500/20 animate-slide-up">
-          <p className="text-sm text-red-400">{errorMessage}</p>
-          <button onClick={dismissError} className="text-red-400 hover:text-red-300 ml-4 shrink-0">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
-
-      {/* Step 1: Select Model */}
-      {step === 'model' && (
-        <div className="space-y-4 animate-slide-up">
-          <h2 className="text-lg font-semibold text-white">Which AI model?</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {AI_MODELS.map((model) => (
-              <Card
-                key={model.id}
-                hover
-                onClick={() => setSelectedModel(model.id)}
-                className={`cursor-pointer transition-all ${
-                  selectedModel === model.id
-                    ? 'border-primary-500/50 bg-primary-500/5'
-                    : ''
+      {/* Step Content */}
+      <AnimatePresence mode="wait">
+        {/* Step 0 - Model Selection */}
+        {step === 0 && (
+          <motion.div key="step0" {...fadeIn} className="space-y-4">
+            <h2 className="text-lg font-medium text-white">Choose your model</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {AI_MODELS.map((model) => (
+                <motion.button
+                  key={model.id}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setConfig((c) => ({ ...c, model: model.id }))}
+                  className={`text-left p-4 rounded-2xl border bg-zinc-900/40 backdrop-blur-sm transition-all ${
+                    config.model === model.id
+                      ? 'border-white/20 bg-zinc-800/60'
+                      : 'border-zinc-800/60 hover:border-zinc-700/60'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-3xl">{model.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-white truncate">{model.name}</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">{model.provider}</p>
+                      <p className="text-sm text-zinc-600 mt-2 leading-relaxed">
+                        {model.description}
+                      </p>
+                    </div>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+            <div className="flex justify-end pt-4">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                disabled={!config.model}
+                onClick={() => setStep(1)}
+                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  config.model
+                    ? 'bg-white text-black hover:bg-zinc-100'
+                    : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
                 }`}
               >
-                <div className="flex items-start gap-3">
-                  <span className="text-3xl">{model.icon}</span>
-                  <div>
-                    <p className="font-semibold text-white">{model.name}</p>
-                    <p className="text-xs text-dark-400 mt-0.5">{model.provider}</p>
-                    <p className="text-sm text-dark-400 mt-2">{model.description}</p>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-          <div className="flex justify-end">
-            <Button disabled={!canProceed.model} onClick={() => setStep('channel')}>
-              Next: Select Channel →
-            </Button>
-          </div>
-        </div>
-      )}
+                Next →
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
 
-      {/* Step 2: Select Channel */}
-      {step === 'channel' && (
-        <div className="space-y-4 animate-slide-up">
-          <h2 className="text-lg font-semibold text-white">Which channel?</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {CHANNELS.map((channel) => (
-              <Card
-                key={channel.id}
-                hover={channel.available}
-                onClick={() => channel.available && setSelectedChannel(channel.id)}
-                className={`
-                  ${!channel.available ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                  ${selectedChannel === channel.id ? 'border-primary-500/50 bg-primary-500/5' : ''}
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">{channel.icon}</span>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-white">{channel.name}</p>
-                      {!channel.available && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-dark-700 text-dark-400">Soon</span>
-                      )}
-                    </div>
-                    <p className="text-sm text-dark-400">{channel.description}</p>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-          <div className="flex justify-between">
-            <Button variant="ghost" onClick={() => setStep('model')}>← Back</Button>
-            <Button disabled={!canProceed.channel} onClick={() => setStep('config')}>
-              Next: Configure →
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Configure */}
-      {step === 'config' && (
-        <div className="space-y-6 animate-slide-up">
-          <h2 className="text-lg font-semibold text-white">Configure your agent</h2>
-
-          <Card>
-            <div className="space-y-6">
-              {/* Summary */}
-              <div className="flex items-center gap-6 pb-6 border-b border-dark-700/50">
-                <div>
-                  <p className="text-xs text-dark-400 mb-1">Model</p>
-                  <p className="text-white font-medium">
-                    {AI_MODELS.find((m) => m.id === selectedModel)?.name}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-dark-400 mb-1">Channel</p>
-                  <p className="text-white font-medium">
-                    {CHANNELS.find((c) => c.id === selectedChannel)?.name}
-                  </p>
-                </div>
-              </div>
-
-              {/* Service Name */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-2">Agent Name</label>
-                <input
-                  type="text"
-                  value={serviceName}
-                  onChange={(e) => setServiceName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-                  placeholder="my-awesome-agent"
-                  className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-dark-500 focus:border-primary-500 focus:outline-none"
-                />
-                <p className="text-xs text-dark-500 mt-1">Lowercase letters, numbers, and hyphens only</p>
-              </div>
-
-              {/* Tier selection */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-3">Select Plan</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {PRICING_TIERS.map((tier) => (
-                    <button
-                      key={tier.tier}
-                      onClick={() => setSelectedTier(tier.tier)}
-                      className={`
-                        p-4 rounded-xl border text-center transition-all
-                        ${selectedTier === tier.tier
-                          ? 'border-primary-500/50 bg-primary-500/5'
-                          : 'border-dark-700/50 bg-dark-800/30 hover:border-dark-600'
-                        }
-                      `}
-                    >
-                      <p className="font-semibold text-white">{tier.name}</p>
-                      <p className="text-xs text-dark-400 mt-1">{tier.priceLabel}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Region */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-2">Region</label>
-                <select
-                  value={selectedRegion}
-                  onChange={(e) => setSelectedRegion(e.target.value)}
-                  className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-primary-500 focus:outline-none"
+        {/* Step 1 - Channel Selection */}
+        {step === 1 && (
+          <motion.div key="step1" {...fadeIn} className="space-y-4">
+            <h2 className="text-lg font-medium text-white">Choose your channel</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {CHANNELS.map((ch) => (
+                <motion.button
+                  key={ch.id}
+                  whileHover={!ch.available ? undefined : { y: -2 }}
+                  whileTap={!ch.available ? undefined : { scale: 0.98 }}
+                  onClick={() => ch.available && setConfig((c) => ({ ...c, channel: ch.id }))}
+                  disabled={!ch.available}
+                  className={`text-left p-4 rounded-2xl border bg-zinc-900/40 backdrop-blur-sm transition-all ${
+                    !ch.available ? 'opacity-50 cursor-not-allowed' : ''
+                  } ${
+                    config.channel === ch.id
+                      ? 'border-white/20 bg-zinc-800/60'
+                      : 'border-zinc-800/60 hover:border-zinc-700/60'
+                  }`}
                 >
-                  <option value="us-central1">🇺🇸 US Central (Iowa)</option>
-                  <option value="eu-west1">🇪🇺 EU West (Belgium)</option>
-                  <option value="ap-south1">🇮🇳 Asia Pacific (Mumbai)</option>
-                </select>
-              </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{ch.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-white">{ch.name}</p>
+                        {!ch.available && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-600 font-medium">
+                            Soon
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-zinc-500">{ch.description}</p>
+                    </div>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+            <div className="flex justify-between pt-4">
+              <button
+                onClick={() => setStep(0)}
+                className="px-4 py-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                ← Back
+              </button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                disabled={!config.channel}
+                onClick={() => setStep(2)}
+                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  config.channel
+                    ? 'bg-white text-black hover:bg-zinc-100'
+                    : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                }`}
+              >
+                Next →
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
 
-              {/* API Key (optional) */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-2">
-                  OpenRouter API Key <span className="text-dark-500">(optional)</span>
-                </label>
-                <input
-                  type="password"
-                  value={apiToken}
-                  onChange={(e) => setApiToken(e.target.value)}
-                  placeholder="sk-or-..."
-                  className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-dark-500 focus:border-primary-500 focus:outline-none"
-                />
-                <p className="text-xs text-dark-500 mt-1">Leave empty to use included credits</p>
+        {/* Step 2 - Configuration */}
+        {step === 2 && (
+          <motion.div key="step2" {...fadeIn} className="space-y-6">
+            <h2 className="text-lg font-medium text-white">Configure deployment</h2>
+
+            {/* Summary */}
+            <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 backdrop-blur-sm p-5">
+              <div className="flex items-center justify-between mb-4 pb-4 border-b border-zinc-800/60">
+                <span className="text-sm text-zinc-500">Model</span>
+                <span className="text-sm text-white font-medium">
+                  {AI_MODELS.find((m) => m.id === config.model)?.name}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-zinc-500">Channel</span>
+                <span className="text-sm text-white font-medium">
+                  {CHANNELS.find((ch) => ch.id === config.channel)?.name}
+                </span>
               </div>
             </div>
-          </Card>
 
-          <div className="flex justify-between">
-            <Button variant="ghost" onClick={() => setStep('channel')}>← Back</Button>
-            <Button
-              loading={createDeployment.isPending}
-              disabled={!canProceed.config}
-              onClick={handleDeploy}
-            >
-              🚀 Deploy Agent
-            </Button>
-          </div>
-        </div>
-      )}
+            {/* Plan Selection */}
+            <div>
+              <label className="text-sm text-zinc-400 mb-3 block">Select plan</label>
+              <div className="grid grid-cols-3 gap-3">
+                {PRICING_TIERS.map((tier) => (
+                  <motion.button
+                    key={tier.tier}
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setConfig((c) => ({ ...c, tier: tier.tier as Tier }))}
+                    className={`relative p-4 rounded-xl border text-center transition-all ${
+                      config.tier === tier.tier
+                        ? 'border-white/30 bg-white/5'
+                        : 'border-zinc-800/60 bg-zinc-900/20'
+                    } ${tier.popular ? 'ring-1 ring-emerald-500/30' : ''}`}
+                  >
+                    {tier.popular && (
+                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[10px] bg-emerald-500/20 text-emerald-400 rounded-full font-medium">
+                        Popular
+                      </span>
+                    )}
+                    <p className="font-medium text-white capitalize">{tier.name}</p>
+                    <p className="text-xs text-zinc-500 mt-1">{tier.priceLabel}</p>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
 
-      {/* Deploying state */}
-      {createDeployment.isPending && (
-        <div className="text-center py-12 animate-fade-in">
-          <div className="w-16 h-16 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto mb-6" />
-          <h2 className="text-xl font-semibold text-white mb-2">Deploying your agent...</h2>
-          <p className="text-dark-400">Spinning up container and connecting services</p>
-        </div>
-      )}
-    </div>
+            {/* Region */}
+            <div>
+              <label className="text-sm text-zinc-400 mb-2 block">Region</label>
+              <div className="grid grid-cols-3 gap-2">
+                {REGIONS.map((region) => (
+                  <motion.button
+                    key={region.id}
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setConfig((c) => ({ ...c, region: region.id }))}
+                    className={`p-3 rounded-xl border text-center transition-all ${
+                      config.region === region.id
+                        ? 'border-white/30 bg-white/5'
+                        : 'border-zinc-800/60 bg-zinc-900/20'
+                    }`}
+                  >
+                    <span className="text-lg">{region.flag}</span>
+                    <p className="text-xs text-zinc-500 mt-1">{region.name}</p>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-between pt-4 border-t border-zinc-800/60">
+              <button
+                onClick={() => setStep(1)}
+                 className="px-4 py-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                ← Back
+              </button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleDeploy}
+                disabled={createMutation.isPending}
+                className="px-5 py-2.5 rounded-xl text-sm font-medium bg-white text-black hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createMutation.isPending ? 'Deploying...' : '🚀 Deploy Agent'}
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
