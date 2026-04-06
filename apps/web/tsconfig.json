@@ -20,5 +20,5 @@
     "typeRoots": ["./apps/web/node_modules/@types", "./node_modules/@types"]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "../../packages/api/src/**/*"]
 }

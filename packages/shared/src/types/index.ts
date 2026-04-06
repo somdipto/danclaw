@@ -225,7 +225,7 @@ export interface UsageResponse {
 
 export interface BillingSubscription {
   subscription_id: string;
-  status: 'active' | 'cancelled' | 'past_due';
+  status: 'active' | 'cancelled' | 'past_due' | 'trialing';
   plan: Tier;
   next_billing: string;
   end_date?: string;
@@ -246,7 +246,7 @@ export interface Activity {
   user_id: string;
   action: string;
   timestamp: string;
-  icon: string;
+  icon?: string;
 }
 
 // ─────────────────────────────────────────────
@@ -299,12 +299,19 @@ export interface UserProfileResponse {
   user: User;
 }
 
-export interface LoginResponse {
-  user: User;
-  token: string;
+export interface SubscribeRequest {
+  plan: Tier;
+  payment_method: string;
 }
 
-export interface RegisterResponse {
-  user: User;
-  token: string;
+export interface SubscribeResponse {
+  subscription_id: string;
+  status: 'active' | 'cancelled' | 'past_due';
+  plan: Tier;
+  next_billing: string;
+}
+
+export interface CancelResponse {
+  cancelled: boolean;
+  end_date: string;
 }

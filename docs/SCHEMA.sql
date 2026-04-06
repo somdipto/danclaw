@@ -23,6 +23,15 @@ CREATE TABLE IF NOT EXISTS public.users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- RLS Policies for users (was missing - only deployments had RLS)
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "users_select_own" ON public.users
+  FOR SELECT USING (id = auth.uid());
+
+CREATE POLICY "users_update_own" ON public.users
+  FOR UPDATE USING (id = auth.uid());
+
 COMMENT ON TABLE public.users IS 'User profiles synced with InsForge Auth. Contains subscription tier and OpenRouter token storage.';
 COMMENT ON COLUMN public.users.id IS 'UUID primary key';
 COMMENT ON COLUMN public.users.email IS 'Unique email address from OAuth provider';
@@ -81,6 +90,18 @@ CREATE TABLE IF NOT EXISTS public.messages (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- RLS for messages (access via deployment ownership)
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "messages_select_own" ON public.messages
+  FOR SELECT USING (
+    deployment_id IN (SELECT id FROM public.deployments WHERE user_id = auth.uid())
+  );
+CREATE POLICY "messages_insert_own" ON public.messages
+  FOR INSERT WITH CHECK (
+    deployment_id IN (SELECT id FROM public.deployments WHERE user_id = auth.uid())
+  );
+
 COMMENT ON TABLE public.messages IS 'Chat message history for each deployment. Stores both user and agent messages.';
 COMMENT ON COLUMN public.messages.id IS 'UUID primary key';
 COMMENT ON COLUMN public.messages.deployment_id IS 'Parent deployment UUID';
@@ -98,6 +119,14 @@ CREATE TABLE IF NOT EXISTS public.activity (
   icon TEXT,
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- RLS for activity
+ALTER TABLE public.activity ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "activity_select_own" ON public.activity
+  FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "activity_insert_own" ON public.activity
+  FOR INSERT WITH CHECK (user_id = auth.uid());
 
 COMMENT ON TABLE public.activity IS 'User activity feed for analytics and notifications.';
 COMMENT ON COLUMN public.activity.id IS 'UUID primary key';
@@ -377,16 +406,49 @@ CREATE TRIGGER trigger_update_deployments_updated_at
   BEFORE UPDATE ON public.deployments
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+-- Auto-log deployment activity (eliminates N+1 in app code)
+CREATE OR REPLACE FUNCTION public.log_deployment_activity()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO public.activity (user_id, action, icon, timestamp)
+    VALUES (
+      NEW.user_id,
+      'Deployed "' || NEW.service_name || '" agent',
+      'rocket',
+      NOW()
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_log_deployment_activity
+  AFTER INSERT ON public.deployments
+  FOR EACH ROW EXECUTE FUNCTION public.log_deployment_activity();
+
 -- ============================================================
 -- 3. ADDITIONAL INDEXES (Phase 2 tables)
 -- ============================================================
 
 CREATE INDEX IF NOT EXISTS idx_agents_memory_enabled ON public.agents(memory_enabled);
-CREATE INDEX IF NOT EXISTS idx_agent_memory_expires_at ON public.agent_memory(expires_at) WHERE expires_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_payments_status ON public.payments(status);
 CREATE INDEX IF NOT EXISTS idx_payments_created_at ON public.payments(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_webhook_events_created_at ON public.webhook_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_provisioning_logs_created_at ON public.provisioning_logs(created_at DESC);
+
+-- Partial index for TTL cleanup
+CREATE INDEX IF NOT EXISTS idx_agent_memory_expires_at ON public.agent_memory(expires_at) WHERE expires_at IS NOT NULL;
+
+-- Partial index for error log queries
+CREATE INDEX IF NOT EXISTS idx_provisioning_logs_level ON public.provisioning_logs(level) WHERE level = 'error';
+
+-- Partial index for subscription status filtering
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON public.subscriptions(status);
+
+-- Partial indexes for channel/model filtering
+CREATE INDEX IF NOT EXISTS idx_deployments_channel ON public.deployments(channel);
+CREATE INDEX IF NOT EXISTS idx_deployments_model ON public.deployments(model);
 
 -- 5. SEED DATA (Development Only)
 -- ============================================================

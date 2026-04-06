@@ -42,7 +42,8 @@ export async function POST(request: NextRequest) {
     const profileResult = await databaseApi.insert('users', {
       id: user.id,
       email: user.email,
-      name: name,
+      name: name || user.profile?.name || '',
+      avatar: user.profile?.avatar_url || null,
       tier: 'free',
     });
 
@@ -59,22 +60,19 @@ export async function POST(request: NextRequest) {
       expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000),
     });
 
-    // Need to use NextResponse to set cookie, pass raw data without double-wrapping
     const response = NextResponse.json(
       {
-        data: {
-          user: {
-            id: user.id,
-            email: user.email,
-            name: name,
-            avatar: '',
-            tier: 'free',
-            created_at: user.createdAt,
-            updated_at: user.updatedAt,
-          },
-          token: accessToken,
-        } as RegisterResponse,
-      },
+        user: {
+          id: user.id,
+          email: user.email,
+          name: name || user.profile?.name || '',
+          avatar: user.profile?.avatar_url || undefined,
+          tier: 'free' as const,
+          created_at: user.createdAt || new Date().toISOString(),
+          updated_at: user.updatedAt || new Date().toISOString(),
+        },
+        token: accessToken,
+      } satisfies RegisterResponse,
       { status: 201 }
     );
 

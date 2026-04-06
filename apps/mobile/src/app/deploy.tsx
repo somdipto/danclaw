@@ -6,29 +6,64 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 import { Colors, Spacing, BottomTabInset } from '@/constants/theme';
-import { aiModels, channels } from '@/constants/mockData';
+import { useCreateDeployment } from '@danclaw/api';
+import { AI_MODELS, CHANNELS } from '@danclaw/shared';
+import type { CreateDeploymentRequest } from '@danclaw/shared';
 
 type Step = 'model' | 'channel' | 'review';
 
 export default function DeployScreen() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>('model');
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedChannel, setSelectedChannel] = useState('');
+  const [selectedRegion, setSelectedRegion] = useState('us-central1');
+  const [serviceName, setServiceName] = useState('');
+
+  const createDeployment = useCreateDeployment({
+    onSuccess: (result) => {
+      if (result.data) {
+        const depId = result.data.deployment?.id;
+        if (depId) {
+          router.replace(`/provisioning?id=${depId}`);
+        } else {
+          router.replace('/');
+        }
+      } else if (result.error) {
+        Alert.alert('Deployment Failed', result.error.message);
+      }
+    },
+    onError: (err) => {
+      Alert.alert('Error', err.message || 'Something went wrong');
+    },
+  });
 
   const stepIndex = step === 'model' ? 0 : step === 'channel' ? 1 : 2;
   const stepLabels = ['Model', 'Channel', 'Review'];
 
   const handleDeploy = () => {
-    Alert.alert(
-      '🚀 Deploy Started',
-      `Deploying ${aiModels.find(m => m.id === selectedModel)?.name} on ${channels.find(c => c.id === selectedChannel)?.name}`,
-      [{ text: 'OK' }],
-    );
+    if (!serviceName.trim()) {
+      Alert.alert('Error', 'Please enter a service name');
+      return;
+    }
+    const req: CreateDeploymentRequest = {
+      service_name: serviceName.trim(),
+      tier: 'free',
+      region: selectedRegion,
+      model: selectedModel,
+      channel: selectedChannel,
+    };
+    createDeployment.mutate(req);
   };
+
+  const selectedModelData = AI_MODELS.find(m => m.id === selectedModel);
+  const selectedChannelData = CHANNELS.find(c => c.id === selectedChannel);
 
   return (
     <View style={styles.container}>
@@ -38,7 +73,6 @@ export default function DeployScreen() {
           contentContainerStyle={{ paddingBottom: BottomTabInset + Spacing.four }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
           <Text style={styles.title}>Deploy Agent</Text>
           <Text style={styles.subtitle}>Set up your AI agent in 3 simple steps</Text>
 
@@ -86,7 +120,7 @@ export default function DeployScreen() {
           {step === 'model' && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Select a Model</Text>
-              {aiModels.map(model => (
+              {AI_MODELS.map(model => (
                 <TouchableOpacity
                   key={model.id}
                   style={[
@@ -96,7 +130,7 @@ export default function DeployScreen() {
                   activeOpacity={0.7}
                   onPress={() => setSelectedModel(model.id)}
                 >
-                  <Text style={styles.cardIcon}>{model.icon}</Text>
+                  <Text style={styles.cardIcon}>🤖</Text>
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{model.name}</Text>
                     <Text style={styles.cardSubtitle}>{model.provider}</Text>
@@ -123,7 +157,7 @@ export default function DeployScreen() {
           {step === 'channel' && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Select a Channel</Text>
-              {channels.map(ch => (
+              {CHANNELS.map(ch => (
                 <TouchableOpacity
                   key={ch.id}
                   style={[
@@ -134,7 +168,7 @@ export default function DeployScreen() {
                   activeOpacity={ch.available ? 0.7 : 1}
                   onPress={() => ch.available && setSelectedChannel(ch.id)}
                 >
-                  <Text style={styles.cardIcon}>{ch.icon}</Text>
+                  <Text style={styles.cardIcon}>💬</Text>
                   <View style={styles.cardContent}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text style={styles.cardTitle}>{ch.name}</Text>
@@ -172,18 +206,35 @@ export default function DeployScreen() {
           {step === 'review' && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Review & Deploy</Text>
+
+              <Text style={styles.fieldLabel}>Service Name</Text>
+              <TouchableOpacity
+                style={styles.nameInput}
+                onPress={() => {
+                  Alert.prompt(
+                    'Service Name',
+                    'Enter a name for your agent (e.g. my-agent-01)',
+                    (name) => {
+                      if (name?.trim()) setServiceName(name.trim());
+                    },
+                    'plain-text',
+                    serviceName || 'my-agent'
+                  );
+                }}
+              >
+                <Text style={[styles.nameInputText, !serviceName && { color: Colors.dark500 }]}>
+                  {serviceName || 'Tap to set service name'}
+                </Text>
+              </TouchableOpacity>
+
               <View style={styles.reviewCard}>
                 <View style={styles.reviewRow}>
                   <Text style={styles.reviewLabel}>Model</Text>
-                  <Text style={styles.reviewValue}>
-                    {aiModels.find(m => m.id === selectedModel)?.name}
-                  </Text>
+                  <Text style={styles.reviewValue}>{selectedModelData?.name ?? '—'}</Text>
                 </View>
                 <View style={[styles.reviewRow, { borderTopWidth: 1, borderTopColor: Colors.dark700 }]}>
                   <Text style={styles.reviewLabel}>Channel</Text>
-                  <Text style={styles.reviewValue}>
-                    {channels.find(c => c.id === selectedChannel)?.name}
-                  </Text>
+                  <Text style={styles.reviewValue}>{selectedChannelData?.name ?? '—'}</Text>
                 </View>
                 <View style={[styles.reviewRow, { borderTopWidth: 1, borderTopColor: Colors.dark700 }]}>
                   <Text style={styles.reviewLabel}>Plan</Text>
@@ -199,10 +250,19 @@ export default function DeployScreen() {
                   <Text style={styles.backButtonText}>← Back</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.deployButton, { flex: 1 }]}
+                  style={[
+                    styles.deployButton,
+                    { flex: 1 },
+                    createDeployment.isPending && styles.buttonDisabled,
+                  ]}
+                  disabled={createDeployment.isPending || !serviceName}
                   onPress={handleDeploy}
                 >
-                  <Text style={styles.deployButtonText}>🚀 Deploy Agent</Text>
+                  {createDeployment.isPending ? (
+                    <ActivityIndicator color={Colors.white} />
+                  ) : (
+                    <Text style={styles.deployButtonText}>🚀 Deploy Agent</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -313,4 +373,22 @@ const styles = StyleSheet.create({
   },
   reviewLabel: { fontSize: 14, color: Colors.dark400 },
   reviewValue: { fontSize: 14, fontWeight: '600', color: Colors.white },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.dark400,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  nameInput: {
+    backgroundColor: Colors.dark800,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: Colors.dark700,
+    marginBottom: 12,
+  },
+  nameInputText: { fontSize: 16, color: Colors.white },
 });

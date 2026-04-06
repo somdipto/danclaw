@@ -10,35 +10,59 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PNPM_CACHE_FOLDER: .pnpm-store
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+
 jobs:
   deploy-preview:
-    name: Preview Deployment
+    name: Deploy Preview
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - name: Deploy to Vercel (Preview)
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build Web App
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
         env:
           NEXT_PUBLIC_INSFORGE_URL: ${{ secrets.NEXT_PUBLIC_INSFORGE_URL }}
           NEXT_PUBLIC_INSFORGE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_INSFORGE_ANON_KEY }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
           NEXT_PUBLIC_OPENROUTER_API_KEY: ${{ secrets.NEXT_PUBLIC_OPENROUTER_API_KEY }}
+      - name: Deploy Preview to Vercel
+        run: |
+          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "Preview URL: $URL"
+          echo "preview_url=$URL" >> $GITHUB_OUTPUT
+        id: deploy
+      - name: Comment PR with Preview URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '## Vercel Preview\n\n:rocket: Preview deployed to: ${{ steps.deploy.outputs.preview_url }}\n\n---\n\n_Approve this PR to deploy to production._'
+            })
 
   deploy-production:
-    name: Production Deployment
+    name: Deploy Production
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
@@ -46,23 +70,26 @@ jobs:
       url: https://danclaw.app
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - name: Deploy to Vercel (Production)
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build Web App
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           NEXT_PUBLIC_INSFORGE_URL: ${{ secrets.NEXT_PUBLIC_INSFORGE_URL }}
           NEXT_PUBLIC_INSFORGE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_INSFORGE_ANON_KEY }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
           NEXT_PUBLIC_OPENROUTER_API_KEY: ${{ secrets.NEXT_PUBLIC_OPENROUTER_API_KEY }}
+      - name: Deploy Production to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}

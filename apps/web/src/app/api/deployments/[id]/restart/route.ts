@@ -70,8 +70,8 @@ export async function POST(
     const now = new Date().toISOString();
     const { error: updateError } = await databaseApi.update(
       'deployments',
-      { status: targetStatus, updated_at: now },
       { id },
+      { status: targetStatus, updated_at: now },
       session.accessToken
     );
 

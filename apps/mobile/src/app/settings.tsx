@@ -7,17 +7,88 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 
 import { Colors, Spacing, BottomTabInset } from '@/constants/theme';
+import { useUserProfile, danclawClient } from '@danclaw/api';
+
+const TOKEN_KEY = 'danclaw_auth_token';
 
 export default function SettingsScreen() {
+  const router = useRouter();
+  const { data, isLoading } = useUserProfile();
   const [notifications, setNotifications] = useState({
     deployComplete: true,
     chatResponse: true,
     costAlerts: true,
   });
+
+  const user = data?.data?.user;
+
+  const [openrouterToken, setOpenrouterToken] = useState(user?.openrouter_token ?? '');
+  const [tokenSaved, setTokenSaved] = useState(false);
+
+  const handleSaveToken = async () => {
+    try {
+      const result = await danclawClient.updateProfile({ openrouter_token: openrouterToken });
+      if (result.data) {
+        setTokenSaved(true);
+        setTimeout(() => setTokenSaved(false), 2000);
+      } else {
+        Alert.alert('Error', result.error?.message ?? 'Failed to save token');
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to save token');
+    }
+  };
+
+  const handleSignOut = async () => {
+    Alert.alert('Sign Out', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await danclawClient.signOut();
+          await SecureStore.deleteItemAsync(TOKEN_KEY);
+          router.replace('/(auth)/login');
+        },
+      },
+    ]);
+  };
+
+  const tierLabel = (tier: string) => {
+    switch (tier) {
+      case 'pro': return 'Pro';
+      case 'elite': return 'Elite';
+      default: return 'Free';
+    }
+  };
+
+  const tierColor = (tier: string) => {
+    switch (tier) {
+      case 'pro': return Colors.primaryLight;
+      case 'elite': return Colors.accent;
+      default: return Colors.dark400;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -27,20 +98,23 @@ export default function SettingsScreen() {
           contentContainerStyle={{ paddingBottom: BottomTabInset + Spacing.four }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
           <Text style={styles.title}>Settings</Text>
 
           {/* Profile */}
           <View style={styles.profileCard}>
             <View style={styles.profileAvatar}>
-              <Text style={styles.profileAvatarText}>D</Text>
+              <Text style={styles.profileAvatarText}>
+                {user?.name?.[0]?.toUpperCase() ?? '?'}
+              </Text>
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>Dan</Text>
-              <Text style={styles.profileEmail}>dan@danglasses.ai</Text>
+              <Text style={styles.profileName}>{user?.name ?? 'Loading...'}</Text>
+              <Text style={styles.profileEmail}>{user?.email ?? ''}</Text>
             </View>
-            <View style={styles.planBadge}>
-              <Text style={styles.planBadgeText}>Pro</Text>
+            <View style={[styles.planBadge, { borderColor: tierColor(user?.tier ?? 'free') + '50' }]}>
+              <Text style={[styles.planBadgeText, { color: tierColor(user?.tier ?? 'free') }]}>
+                {tierLabel(user?.tier ?? 'free')}
+              </Text>
             </View>
           </View>
 
@@ -67,7 +141,34 @@ export default function SettingsScreen() {
           {/* AI Config */}
           <Text style={styles.sectionTitle}>AI Configuration</Text>
           <View style={styles.section}>
-            <TouchableOpacity style={styles.row} activeOpacity={0.7}>
+            <View style={[styles.row, styles.tokenRow]}>
+              <Text style={styles.rowIcon}>🔑</Text>
+              <View style={styles.tokenContent}>
+                <Text style={styles.rowLabel}>OpenRouter Token</Text>
+                <TextInput
+                  style={styles.tokenInput}
+                  value={openrouterToken}
+                  onChangeText={setOpenrouterToken}
+                  placeholder="sk-or-..."
+                  placeholderTextColor={Colors.dark500}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry
+                />
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.row, styles.rowBorder, styles.tokenSaveRow]}
+              activeOpacity={0.7}
+              onPress={handleSaveToken}
+            >
+              <Text style={[styles.rowIcon]}>💾</Text>
+              <Text style={[styles.rowLabel, { flex: 1 }]}>
+                {tokenSaved ? 'Saved!' : 'Save Token'}
+              </Text>
+              {tokenSaved && <Text style={styles.rowValue}>✓</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.row, styles.rowBorder]} activeOpacity={0.7}>
               <Text style={styles.rowIcon}>🤖</Text>
               <Text style={styles.rowLabel}>Default Model</Text>
               <Text style={styles.rowValue}>Claude 3.5</Text>
@@ -131,14 +232,10 @@ export default function SettingsScreen() {
             ))}
           </View>
 
-          {/* Sign Out */}
           <TouchableOpacity
             style={styles.signOutButton}
             activeOpacity={0.7}
-            onPress={() => Alert.alert('Sign Out', 'Are you sure?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Sign Out', style: 'destructive' },
-            ])}
+            onPress={handleSignOut}
           >
             <Text style={styles.signOutText}>Sign Out</Text>
           </TouchableOpacity>
@@ -237,4 +334,19 @@ const styles = StyleSheet.create({
     color: Colors.dark500,
     marginTop: Spacing.three,
   },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  tokenRow: { alignItems: 'flex-start' },
+  tokenContent: { flex: 1 },
+  tokenInput: {
+    backgroundColor: Colors.dark900,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: Colors.white,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: Colors.dark700,
+    marginTop: 6,
+  },
+  tokenSaveRow: { minHeight: 52 },
 });

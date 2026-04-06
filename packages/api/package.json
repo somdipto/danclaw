@@ -11,8 +11,7 @@
     "./websocket": "./src/websocket.ts"
   },
   "dependencies": {
-    "@danclaw/shared": "workspace:*",
-    "@insforge/sdk": "^1.2.2"
+    "@danclaw/shared": "workspace:*"
   },
   "peerDependencies": {
     "@tanstack/react-query": ">=5.0.0",

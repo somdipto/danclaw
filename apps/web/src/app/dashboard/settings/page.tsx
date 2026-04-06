@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { useUserProfile, useUsage, danclawClient } from '@danclaw/api';
+import { useUserProfile, useUsage } from '@danclaw/api';
 import { useAuth } from '@/lib/auth-context';
 import { AI_MODELS } from '@danclaw/shared';
+import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const [selectedModel, setSelectedModel] = useState('claude-3-sonnet');
@@ -35,12 +36,19 @@ export default function SettingsPage() {
     setIsSavingKey(true);
     setApiKeySaved(false);
     try {
-      await danclawClient.updateProfile({ openrouter_token: apiKey || undefined });
-      setApiKeySaved(true);
-      setApiKey('');
-      setTimeout(() => setApiKeySaved(false), 3000);
-    } catch {
-      // handle silently
+      const { danclawClient } = await import('@danclaw/api');
+      const result = await danclawClient.updateProfile({ openrouter_token: apiKey || undefined });
+      if (result.error) {
+        toast.error('Failed to save API key', { description: result.error.message });
+      } else {
+        setApiKeySaved(true);
+        setApiKey('');
+        setTimeout(() => setApiKeySaved(false), 3000);
+      }
+    } catch (err) {
+      toast.error('Failed to save API key', {
+        description: err instanceof Error ? err.message : 'Something went wrong',
+      });
     } finally {
       setIsSavingKey(false);
     }

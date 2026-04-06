@@ -80,7 +80,6 @@ export async function DELETE(
     // Delete the deployment
     const result = await databaseApi.delete('deployments', {
       id,
-      user_id: userId,
     });
 
     if (result.error) {

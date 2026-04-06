@@ -3,12 +3,12 @@ import {
   databaseApi,
   parseSessionCookie,
   canCreateDeployment,
-  buildActivityEntry,
   apiError,
   apiSuccess,
+  type Tier,
 } from '@/lib/server/insforge';
-import { createDeploymentSchema } from '@danclaw/shared/validators';
 import type { Deployment } from '@danclaw/shared';
+import { createDeploymentSchema } from '@danclaw/shared';
 
 interface SessionData {
   accessToken?: string;
@@ -45,17 +45,17 @@ export async function POST(request: NextRequest) {
     const { service_name, tier, region, model, channel } = parsed.data;
 
     // Check tier limits
-    const existingDeployments = await databaseApi.select<Deployment>(
+    const existingResult = await databaseApi.select<Deployment>(
       'deployments',
       { eq: { user_id: session.userId } },
       session.accessToken
     );
 
-    if (existingDeployments.error) {
+    if (existingResult.error) {
       return apiError(500, 'Failed to check deployment limits');
     }
 
-    if (!canCreateDeployment(tier, existingDeployments.data.length)) {
+    if (!canCreateDeployment(tier as Tier, existingResult.data.length)) {
       return apiError(403, `Deployment limit reached for ${tier} tier`);
     }
 
@@ -82,22 +82,8 @@ export async function POST(request: NextRequest) {
 
     const deployment = result.data[0];
 
-    // Log activity
-    const activityEntry = buildActivityEntry(
-      `Deployed "${service_name}" agent`,
-      'rocket'
-    );
-
-    await databaseApi.insert(
-      'activity',
-      {
-        user_id: session.userId,
-        action: activityEntry.action,
-        icon: activityEntry.icon,
-        timestamp: activityEntry.timestamp,
-      },
-      session.accessToken
-    );
+    // Activity auto-logged by DB trigger `trigger_log_deployment_activity`
+    // No manual activity insert needed — eliminates double-logging
 
     return apiSuccess({ deployment });
   } catch (error) {

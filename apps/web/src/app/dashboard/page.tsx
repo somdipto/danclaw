@@ -22,7 +22,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.3, ease: 'easeOut' },
+    transition: { duration: 0.3, ease: [0.33, 1, 0.68, 1] as const },
   },
 };
 
@@ -77,7 +77,7 @@ function StatsCard({ icon, label, value, trend, trendUp }: {
 }
 
 export default function DashboardPage() {
-  const { data: deploymentsData, isLoading: loadingDeployments } = useDeployments();
+  const { data: deploymentsData, isLoading: loadingDeployments, isError: deploymentsError } = useDeployments();
   const { data: profileData, isLoading: loadingProfile } = useUserProfile();
   const { data: usageData } = useUsage();
 
@@ -144,6 +144,16 @@ export default function DashboardPage() {
                   className="h-16 rounded-2xl border border-zinc-800/60 bg-zinc-900/40 animate-shimmer"
                 />
               ))
+            ) : deploymentsError ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center justify-center py-16 rounded-2xl border border-red-500/20 bg-red-500/5"
+              >
+                <span className="text-4xl mb-3">⚠️</span>
+                <p className="text-red-400 text-sm">Failed to load deployments</p>
+                <p className="text-xs text-zinc-600 mt-1">Check your connection and try again</p>
+              </motion.div>
             ) : deployments.length === 0 ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}

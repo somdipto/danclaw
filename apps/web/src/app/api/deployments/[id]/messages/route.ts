@@ -64,11 +64,10 @@ export async function GET(
     const { data: messages, error: msgError } = await databaseApi.select<Message>(
       'messages',
       {
-        select: '*',
         eq: { deployment_id: id },
         order: { column: 'created_at', ascending: true },
         limit,
-        range: { start: offset, end: offset + limit - 1 },
+        offset,
       },
       session.accessToken
     );

@@ -46,11 +46,10 @@ export async function GET(request: NextRequest) {
     }>(
       'activity',
       {
-        select: 'id, action, icon, timestamp',
         eq: { user_id: session.userId },
         order: { column: 'timestamp', ascending: false },
         limit,
-        range: { start: offset, end: offset + limit - 1 },
+        offset,
       },
       session.accessToken
     );

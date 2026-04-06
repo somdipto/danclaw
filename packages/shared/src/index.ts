@@ -63,6 +63,8 @@ export {
   messageSchema,
   webSocketMessageSchema,
   subscribeSchema,
+  cancelSchema,
+  billingPortalSchema,
   userSchema,
   activitySchema,
   deployConfigSchema,

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { authApi, createSessionCookie, apiError } from '@/lib/server/insforge';
 import { NextResponse } from 'next/server';
-import { loginSchema } from '@danclaw/shared/validators';
+import { loginSchema } from '@danclaw/shared';
 import type { LoginResponse } from '@danclaw/shared';
 
 export async function POST(request: NextRequest) {
@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = parsed.data;
 
-    // Call InsForge Auth
-    const result = await authApi.signInWithPassword(email, password);
+    // Call InsForge Auth sessions endpoint
+    const result = await authApi.signIn(email, password);
 
     if (result.error || !result.data?.accessToken || !result.data?.user) {
       return apiError(
@@ -35,20 +35,19 @@ export async function POST(request: NextRequest) {
       expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000),
     });
 
-    // Map InsForgeUser to DanClaw User type
+    // Map InsForge user to DanClaw User type
     const danclawUser = {
       id: user.id,
       email: user.email,
       name: user.profile?.name || '',
-      avatar: user.profile?.avatar_url || '',
-      tier: 'free',
-      created_at: user.createdAt,
-      updated_at: user.updatedAt,
-    };
+      avatar: user.profile?.avatar_url || undefined,
+      tier: 'free' as const,
+      created_at: user.createdAt || new Date().toISOString(),
+      updated_at: user.updatedAt || new Date().toISOString(),
+    } satisfies LoginResponse['user'];
 
-    // Need to use NextResponse to set cookie, but pass raw data (not apiSuccess which double-wraps)
     const response = NextResponse.json(
-      { data: { user: danclawUser, token: accessToken } as LoginResponse },
+      { user: danclawUser, token: accessToken },
       { status: 200 }
     );
 

@@ -46,11 +46,11 @@ export async function PUT(request: NextRequest) {
     // Update token in users table
     const { error } = await databaseApi.update(
       'users',
-      { 
+      { id: session.userId },
+      {
         openrouter_token: openrouter_token || null,
         updated_at: new Date().toISOString()
       },
-      { id: session.userId },
       session.accessToken
     );
 

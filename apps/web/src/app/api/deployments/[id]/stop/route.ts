@@ -1,78 +1,100 @@
 import { NextRequest } from 'next/server';
-import {
-  databaseApi,
+import { 
+  databaseApi, 
+  apiError, 
+  apiSuccess, 
   parseSessionCookie,
-  apiError,
-  apiSuccess,
   isValidStatusTransition,
-  type DeploymentStatus,
+  type DeploymentStatus
 } from '@/lib/server/insforge';
 import type { Deployment } from '@danclaw/shared';
 
-async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
-  const cookieHeader = request.headers.get('cookie');
-  const sessionToken = parseSessionCookie(cookieHeader);
-  if (!sessionToken) return null;
-
-  try {
-    const session = JSON.parse(Buffer.from(sessionToken, 'base64').toString());
-    return session.userId || null;
-  } catch {
-    return null;
-  }
-}
-
+/**
+ * POST /api/deployments/:id/stop
+ *
+ * Stops a running deployment.
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = await getUserIdFromRequest(request);
-    if (!userId) {
+    const { id } = await params;
+    const cookieHeader = request.headers.get('cookie');
+    const sessionToken = parseSessionCookie(cookieHeader);
+    
+    if (!sessionToken) {
+      return apiError(401, 'Unauthorized');
+    }
+    
+    let session: { accessToken?: string; userId?: string };
+    try {
+      session = JSON.parse(Buffer.from(sessionToken, 'base64').toString());
+    } catch {
+      return apiError(401, 'Invalid session');
+    }
+    
+    if (!session?.accessToken || !session?.userId) {
       return apiError(401, 'Unauthorized');
     }
 
-    const { id } = await params;
-
     // Get current deployment
-    const existing = await databaseApi.selectOne<Deployment>('deployments', {
-      id,
-      user_id: userId,
-    });
+    const { data: deployment, error: fetchError } = await databaseApi.selectOne<Deployment>(
+      'deployments',
+      { id },
+      session.accessToken
+    );
 
-    if (existing.error) {
-      return apiError(400, existing.error.message);
+    if (fetchError) {
+      return apiError(400, fetchError.message);
     }
 
-    if (!existing.data) {
+    if (!deployment) {
       return apiError(404, 'Deployment not found');
     }
 
-    const deployment = existing.data;
-    const currentStatus = deployment.status as DeploymentStatus;
+    if (deployment.user_id !== session.userId) {
+      return apiError(403, 'Access denied');
+    }
 
-    // Validate status transition
-    if (!isValidStatusTransition(currentStatus, 'stopping')) {
-      return apiError(400, `Cannot stop deployment from "${currentStatus}" state`);
+    const targetStatus: DeploymentStatus = 'stopping';
+    
+    if (!isValidStatusTransition(deployment.status, targetStatus)) {
+      return apiError(
+        400,
+        `Cannot stop deployment from status '${deployment.status}'`
+      );
     }
 
     // Update status to stopping
-    const result = await databaseApi.update<Deployment>('deployments',
-      { status: 'stopping' },
-      { id, user_id: userId }
+    const now = new Date().toISOString();
+    const { error: updateError } = await databaseApi.update(
+      'deployments',
+      { id },
+      { status: targetStatus, updated_at: now },
+      session.accessToken
     );
 
-    if (result.error) {
-      return apiError(400, result.error.message);
+    if (updateError) {
+      return apiError(400, updateError.message);
     }
 
-    return apiSuccess({
-      success: true,
-      message: 'Deployment stopping',
-      deployment: result.data[0],
-    });
-  } catch (error) {
-    console.error('[Deployments/[id]/stop/POST]', error);
-    return apiError(500, 'Internal server error');
+    // Log activity
+    try {
+      await databaseApi.insert('activity', {
+        user_id: session.userId,
+        action: `Stopped "${deployment.service_name}" agent`,
+        icon: '⏹️',
+        timestamp: now,
+      }, session.accessToken);
+    } catch (actErr) {
+      console.warn('[Deployments/:id/stop] Activity log:', actErr);
+    }
+
+    return apiSuccess({ success: true, message: 'Deployment stopping' });
+  } catch (error: unknown) {
+    console.error('[Deployments/:id/stop]', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return apiError(500, message);
   }
 }

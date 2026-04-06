@@ -1,157 +1,98 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TextInput,
+  FlatList,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 import { Colors, Spacing } from '@/constants/theme';
-import { mockMessages, formatTime } from '@/constants/mockData';
-import type { Message } from '@/constants/mockData';
+import { useDeployments } from '@danclaw/api';
+import type { Deployment } from '@danclaw/shared';
 
-function getSimulatedResponse(input: string): string {
-  const lower = input.toLowerCase();
-  if (lower.includes('email') || lower.includes('inbox')) {
-    return "I've scanned your inbox:\n\n1. Team standup — Rescheduled to 4 PM\n2. Client proposal — Needs review\n3. Deploy — Agent gamma deployed ✅\n\nWant me to draft a reply?";
-  }
-  if (lower.includes('schedule') || lower.includes('meeting')) {
-    return "Your schedule for today:\n\n🕐 1:00 PM — Team standup (30 min)\n🕑 2:30 PM — Client review (45 min)\n🕓 4:00 PM — Sprint planning (1 hr)\n\nYou have a 1-hour gap at 3:15 PM.";
-  }
-  return `I've processed your request: "${input}"\n\n• Task noted and added to workflow\n• I'll monitor for updates\n• Say the word if you need action!\n\nAnything else?`;
+function StatusDot({ status }: { status: string }) {
+  const color =
+    status === 'running' ? Colors.secondary :
+    status === 'stopped' ? Colors.dark500 :
+    status === 'error' ? Colors.error : Colors.primary;
+  return <View style={[styles.statusDot, { backgroundColor: color }]} />;
 }
 
-export default function ChatScreen() {
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+export default function ChatListScreen() {
+  const router = useRouter();
+  const { data, isLoading } = useDeployments();
 
-  const scrollToEnd = () => {
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-  };
+  const deployments = data?.data?.deployments ?? [];
 
-  useEffect(() => {
-    scrollToEnd();
-  }, [messages]);
-
-  const handleSend = () => {
-    if (!input.trim()) return;
-    const userMsg: Message = {
-      id: `m_${Date.now()}`,
-      deployment_id: 'dep_01',
-      role: 'user',
-      content: input,
-      type: 'message',
-      created_at: new Date().toISOString(),
-    };
-    setMessages(prev => [...prev, userMsg]);
-    const inputText = input;
-    setInput('');
-    setIsTyping(true);
-
-    setTimeout(() => {
-      const agentMsg: Message = {
-        id: `m_${Date.now() + 1}`,
-        deployment_id: 'dep_01',
-        role: 'agent',
-        content: getSimulatedResponse(inputText),
-        type: 'response',
-        created_at: new Date().toISOString(),
-      };
-      setMessages(prev => [...prev, agentMsg]);
-      setIsTyping(false);
-    }, 1200 + Math.random() * 800);
-  };
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerDot} />
-            <View>
-              <Text style={styles.headerTitle}>Support Bot Alpha</Text>
-              <Text style={styles.headerSub}>Claude 3.5 Sonnet · Running</Text>
-            </View>
-          </View>
-
-          {/* Messages */}
-          <ScrollView
-            ref={scrollRef}
-            style={styles.messages}
-            contentContainerStyle={{ paddingVertical: Spacing.three }}
-          >
-            {messages.map(msg => (
-              <View
-                key={msg.id}
-                style={[
-                  styles.bubble,
-                  msg.role === 'user' ? styles.userBubble : styles.agentBubble,
-                ]}
-              >
-                <Text style={[styles.bubbleText, msg.role === 'user' && { color: Colors.white }]}>
-                  {msg.content}
-                </Text>
-                <Text
-                  style={[
-                    styles.timestamp,
-                    msg.role === 'user' ? { color: 'rgba(255,255,255,0.6)' } : { color: Colors.dark500 },
-                  ]}
-                >
-                  {formatTime(msg.created_at)}
-                </Text>
-              </View>
-            ))}
-
-            {isTyping && (
-              <View style={[styles.bubble, styles.agentBubble]}>
-                <View style={styles.typingDots}>
-                  <View style={[styles.dot, { opacity: 0.4 }]} />
-                  <View style={[styles.dot, { opacity: 0.7 }]} />
-                  <View style={styles.dot} />
-                </View>
-              </View>
-            )}
-          </ScrollView>
-
-          {/* Input */}
-          <View style={styles.inputBar}>
-            <TouchableOpacity style={styles.inputAction}>
-              <Text style={{ fontSize: 20, color: Colors.dark400 }}>📎</Text>
-            </TouchableOpacity>
-            <TextInput
-              style={styles.input}
-              value={input}
-              onChangeText={setInput}
-              placeholder="Type a message..."
-              placeholderTextColor={Colors.dark500}
-              returnKeyType="send"
-              onSubmitEditing={handleSend}
-              multiline
-            />
-            <TouchableOpacity style={styles.inputAction}>
-              <Text style={{ fontSize: 20, color: Colors.dark400 }}>🎤</Text>
-            </TouchableOpacity>
+        <View style={styles.header}>
+          <Text style={styles.title}>Chat</Text>
+        </View>
+        {deployments.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>💬</Text>
+            <Text style={styles.emptyTitle}>No agents yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Deploy an agent to start chatting
+            </Text>
             <TouchableOpacity
-              style={[styles.sendButton, !input.trim() && { opacity: 0.4 }]}
-              disabled={!input.trim()}
-              onPress={handleSend}
+              style={styles.emptyButton}
+              onPress={() => router.push('/deploy')}
             >
-              <Text style={{ color: Colors.white, fontSize: 16 }}>↑</Text>
+              <Text style={styles.emptyButtonText}>Deploy Agent</Text>
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+        ) : (
+          <FlatList
+            data={deployments}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.chatCard}
+                activeOpacity={0.7}
+                onPress={() => router.push(`/chat/${item.id}`)}
+              >
+                <View style={styles.chatIconWrap}>
+                  <Text style={styles.chatIcon}>
+                    {item.channel === 'telegram' ? '✈️' :
+                     item.channel === 'discord' ? '🎮' :
+                     item.channel === 'whatsapp' ? '💬' :
+                     item.channel === 'slack' ? '💼' : '🌐'}
+                  </Text>
+                </View>
+                <View style={styles.chatInfo}>
+                  <View style={styles.chatTitleRow}>
+                    <Text style={styles.chatName}>{item.service_name}</Text>
+                    <StatusDot status={item.status} />
+                  </View>
+                  <Text style={styles.chatMeta}>
+                    {item.model} · {item.channel}
+                  </Text>
+                </View>
+                <Text style={styles.chatChevron}>›</Text>
+              </TouchableOpacity>
+            )}
+          />
+        )}
       </SafeAreaView>
     </View>
   );
@@ -161,80 +102,102 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dark950 },
   safeArea: { flex: 1 },
   header: {
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.two,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  list: {
+    paddingHorizontal: Spacing.four,
+    paddingBottom: 100,
+  },
+  chatCard: {
+    backgroundColor: Colors.dark800,
+    borderRadius: 16,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.dark700,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark700,
   },
-  headerDot: {
+  chatIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: Colors.dark900,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chatIcon: {
+    fontSize: 24,
+    color: Colors.white,
+  },
+  chatInfo: {
+    flex: 1,
+    gap: 6,
+  },
+  chatTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  chatName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.white,
+  },
+  chatMeta: {
+    fontSize: 12,
+    color: Colors.dark400,
+  },
+  chatChevron: {
+    fontSize: 24,
+    color: Colors.dark400,
+  },
+  statusDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: Colors.secondary,
   },
-  headerTitle: { fontSize: 16, fontWeight: '600', color: Colors.white },
-  headerSub: { fontSize: 12, color: Colors.dark400, marginTop: 2 },
-  messages: { flex: 1, paddingHorizontal: Spacing.four },
-  bubble: {
-    maxWidth: '80%',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 8,
-  },
-  userBubble: {
-    backgroundColor: Colors.primary,
-    alignSelf: 'flex-end',
-    borderBottomRightRadius: 4,
-  },
-  agentBubble: {
-    backgroundColor: Colors.dark800,
-    alignSelf: 'flex-start',
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: Colors.dark700,
-  },
-  bubbleText: { fontSize: 15, lineHeight: 22, color: Colors.dark200 },
-  timestamp: { fontSize: 11, marginTop: 6 },
-  typingDots: { flexDirection: 'row', gap: 4, paddingVertical: 4 },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
-  },
-  inputBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: Colors.dark700,
-    backgroundColor: Colors.dark900,
-    gap: 8,
-  },
-  inputAction: { padding: 6 },
-  input: {
+  loadingContainer: {
     flex: 1,
-    backgroundColor: Colors.dark800,
-    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    color: Colors.dark500,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.white,
+  },
+  emptySubtitle: {
+    fontSize: 12,
+    color: Colors.dark400,
+    textAlign: 'center',
+  },
+  emptyButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    color: Colors.white,
-    fontSize: 15,
-    maxHeight: 100,
-    borderWidth: 1,
-    borderColor: Colors.dark700,
   },
-  sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  emptyButtonText: {
+    color: Colors.white,
+    fontSize: 16,
   },
 });

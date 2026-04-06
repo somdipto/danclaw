@@ -191,7 +191,7 @@ export const usageSchema = z.object({
 
 export const billingSubscriptionSchema = z.object({
   subscription_id: z.string(),
-  status: z.enum(['active', 'cancelled', 'past_due']),
+  status: z.enum(['active', 'cancelled', 'past_due', 'trialing']),
   plan: tierSchema,
   next_billing: z.string(),
   end_date: z.string().optional(),
@@ -206,7 +206,7 @@ export const activitySchema = z.object({
   user_id: z.string().uuid(),
   action: z.string(),
   timestamp: z.string().datetime(),
-  icon: z.string(),
+  icon: z.string().optional(),
 });
 
 // ─────────────────────────────────────────────
@@ -240,6 +240,14 @@ export const createDeploymentSchema = z.object({
 export const subscribeSchema = z.object({
   plan: tierSchema,
   payment_method: z.string().min(1),
+});
+
+export const cancelSchema = z.object({
+  subscription_id: z.string().min(1),
+});
+
+export const billingPortalSchema = z.object({
+  return_url: z.string().url().optional(),
 });
 
 // ─────────────────────────────────────────────

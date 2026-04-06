@@ -1,42 +1,70 @@
+# ============================================================
 # DanClaw Agent Runtime Dockerfile
-# OpenClaw agent runtime with proper security, health checks, and environment variable handling
+# OpenClaw agent runtime with proper security, health checks,
+# and environment variable handling
+# ============================================================
 
+# Stage 1: Base
 FROM node:20-alpine AS base
 
 LABEL maintainer="DanLab <dev@danlab.dev>"
 LABEL description="DanClaw AI Agent Runtime powered by OpenClaw"
 
-# Install OpenClaw and Paperclip
-RUN apk add --no-cache curl wget && \
-    npm install -g @swarmclawai/swarmclaw paperclipai && \
-    npm cache clean --force
+WORKDIR /app
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Stage 2: Dependencies
+FROM base AS deps
 
 WORKDIR /app
 
-# Copy package files for agent runtime dependencies
-COPY infra/docker/package.json ./package.json
+COPY infra/docker/package.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production
+RUN npm ci --only=production && \
+    npm cache clean --force
 
-# Copy application source (agent server)
+# Stage 3: Build
+FROM base AS builder
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY infra/docker/server.js ./server.js
+
+RUN node --check server.js
+
+# Stage 4: Runtime
+FROM base AS runner
+
+LABEL maintainer="DanLab <dev@danlab.dev>"
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S agentgroup && \
-    adduser -u 1001 -S agentuser -G agentgroup && \
-    chown -R agentuser:agentgroup /app
+    adduser -u 1001 -S agentuser -G agentgroup
 
+WORKDIR /app
+
+# Copy dependencies and application
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/server.js ./server.js
+
+# Set ownership
+RUN chown -R agentuser:agentgroup /app
+
+# Health check - uses shell to resolve PORT at runtime
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD sh -c 'curl -f http://localhost:${PORT:-8080}/health || exit 1'
+
+# Switch to non-root user
 USER agentuser
 
-# Health check using wget (available in alpine)
-# PORT is passed as build arg for proper interpolation
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
-
+# Runtime Configuration
 EXPOSE 8080
 
-ENV NODE_ENV=production
-ENV PORT=8080
+ENV NODE_ENV=production \
+    PORT=8080 \
+    HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "echo 'Starting DanClaw Agent on port $PORT'; node server.js"]

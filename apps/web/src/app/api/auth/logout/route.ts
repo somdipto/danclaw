@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const response = NextResponse.json(
-      apiSuccess({ success: true })
+      { success: true }
     );
 
     response.headers.set('Set-Cookie', clearSessionCookie());

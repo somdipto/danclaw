@@ -3,6 +3,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Toaster } from "sonner";
+import { AuthProvider } from "@/lib/auth-context";
 
 // Shadcn-inspired dark theme variables
 import { useEffect } from "react";
@@ -33,7 +35,18 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeInitializer />
-      {children}
+      <Toaster
+        position="bottom-right"
+        theme="dark"
+        toastOptions={{
+          style: {
+            background: "rgba(24, 24, 27, 0.95)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            color: "#fff",
+          },
+        }}
+      />
+      <AuthProvider>{children}</AuthProvider>
     </QueryClientProvider>
   );
 }

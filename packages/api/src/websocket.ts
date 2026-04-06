@@ -2,18 +2,24 @@
  * @danclaw/api — WebSocket Chat Manager
  *
  * Real-time chat using InsForge Realtime WebSocket.
- * 
- * Connection URL: `wss://${(process.env.NEXT_PUBLIC_INSFORGE_URL || '').replace('https://', '').replace('http://', '')}/realtime`
- * Auth: Bearer <ik_ac...> token
+ * Auth: Bearer token via danclawClient.getToken()
  */
 
 import type { WebSocketMessage } from '@danclaw/shared';
-import { INSFORGE_BASE, INSFORGE_KEY } from './client';
+import { getToken } from './client';
 
 export type ChatConnectionState = 'disconnected' | 'connecting' | 'connected';
 
 export type ChatEventHandler = (message: WebSocketMessage) => void;
 export type StateChangeHandler = (state: ChatConnectionState) => void;
+
+// Default InsForge realtime URL — override via EXPO_PUBLIC_INSFORGE_URL (mobile) or NEXT_PUBLIC_INSFORGE_URL (web)
+const INSFORGE_REALTIME = (typeof process !== 'undefined' && (
+  process.env.EXPO_PUBLIC_INSFORGE_URL ||
+  process.env.NEXT_PUBLIC_INSFORGE_URL
+))
+  ? ((process.env.EXPO_PUBLIC_INSFORGE_URL || process.env.NEXT_PUBLIC_INSFORGE_URL) ?? '').replace(/^http/, 'wss')
+  : 'wss://insforge.dev/realtime';
 
 export class ChatWebSocket {
   private ws: WebSocket | null = null;
@@ -24,21 +30,24 @@ export class ChatWebSocket {
   private stateHandlers: Set<StateChangeHandler> = new Set();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  connect(deploymentId: string): void {
+  async connect(deploymentId: string): Promise<void> {
     this.deploymentId = deploymentId;
     this.setState('connecting');
 
-    const wsUrl = `${INSFORGE_BASE.replace('https', 'wss')}/realtime?deployment_id=${deploymentId}&token=${INSFORGE_KEY}`;
-    
-    try {
-      this.ws = new WebSocket(wsUrl);
+    const token = await getToken();
+    const params = new URLSearchParams({ deployment_id: deploymentId });
+    if (token) params.set('token', token);
+    const wsUrl = `${INSFORGE_REALTIME}/realtime?${params.toString()}`;
 
-      this.ws.onopen = () => {
+    try {
+      const ws = this.ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
         this.setState('connected');
         this.flushMessageQueue();
       };
 
-      this.ws.onmessage = (event) => {
+      ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'message' || data.type === 'response') {
@@ -54,11 +63,11 @@ export class ChatWebSocket {
         }
       };
 
-      this.ws.onerror = (err) => {
+      ws.onerror = (err) => {
         console.error('[ChatWebSocket] Error:', err);
       };
 
-      this.ws.onclose = () => {
+      ws.onclose = () => {
         this.setState('disconnected');
         // Auto-reconnect after 5 seconds
         if (this.deploymentId) {
@@ -97,22 +106,6 @@ export class ChatWebSocket {
 
     if (this.connectionState === 'connected' && this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
-      // Also persist via REST API
-      if (this.deploymentId) {
-        fetch(`${INSFORGE_BASE}/api/database/records/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${INSFORGE_KEY}`,
-          },
-          body: JSON.stringify({
-            deployment_id: this.deploymentId,
-            role: 'user',
-            type: 'message',
-            content,
-          }),
-        }).catch(err => console.error('[ChatWebSocket] Message persist error:', err));
-      }
     } else {
       this.messageQueue.push(message);
     }

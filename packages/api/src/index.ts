@@ -3,8 +3,8 @@
  */
 
 // Client
-export { DanClawClient, danclawClient } from './client';
-export { INSFORGE_BASE, INSFORGE_KEY } from './client';
+export { DanClawClient, danclawClient, configureTokenStorage } from './client';
+export { saveToken, getToken, clearToken } from './client';
 
 // Hooks
 export {
@@ -20,8 +20,6 @@ export {
   useDestroyDeployment,
   useMessages,
   useLogin,
-  useSubscribe,
-  useCancelSubscription,
 } from './hooks';
 
 // WebSocket

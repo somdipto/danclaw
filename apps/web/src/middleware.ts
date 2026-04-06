@@ -23,7 +23,7 @@ export function middleware(request: NextRequest) {
   if (!requiresAuth) return NextResponse.next();
 
   // Read session cookie (InsForge stores session in a cookie)
-  const sessionCookie = request.cookies.get('sb-access-token') || request.cookies.get('session');
+  const sessionCookie = request.cookies.get('danclaw_session') || request.cookies.get('sb-access-token');
   if (sessionCookie?.value) return NextResponse.next();
 
   // Also check Authorization header for API routes

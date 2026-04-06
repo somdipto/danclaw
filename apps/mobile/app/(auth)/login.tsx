@@ -31,39 +31,29 @@ async function saveToken(token: string) {
   await SecureStore.setItemAsync(TOKEN_KEY, token);
 }
 
-async function getToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(TOKEN_KEY);
-}
-
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
 
   const loginMutation = useLogin({
-    onSuccess: async (result) => {
-      if (result.data) {
-        await saveToken(result.data.token);
-        router.replace('/(tabs)');
-      } else if (result.error) {
-        setLoading(false);
-        Alert.alert('Login Failed', result.error.message);
+    onSuccess: async (data) => {
+      if (data?.data?.token) {
+        await saveToken(data.data.token);
       }
+      router.replace('/(tabs)');
     },
     onError: (err) => {
-      setLoading(false);
       Alert.alert('Error', err.message || 'Something went wrong');
     },
   });
 
-  const handleEmailLogin = async () => {
+  const handleEmailLogin = () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Error', 'Please enter email and password');
       return;
     }
-    setLoading(true);
     const req: LoginRequest = { email: email.trim(), password: password.trim() };
     loginMutation.mutate(req);
   };
@@ -124,12 +114,12 @@ export default function LoginScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.primaryButton, loading && styles.buttonDisabled]}
-              disabled={loading}
+              style={[styles.primaryButton, loginMutation.isPending && styles.buttonDisabled]}
+              disabled={loginMutation.isPending}
               onPress={handleEmailLogin}
               activeOpacity={0.8}
             >
-              {loading ? (
+              {loginMutation.isPending ? (
                 <ActivityIndicator color={Colors.white} />
               ) : (
                 <Text style={styles.primaryButtonText}>Sign In</Text>

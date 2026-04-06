@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useDeployments } from '@danclaw/api';
+import { useDeployments, useMessages, useDeployment, ChatWebSocket } from '@danclaw/api';
 import type { Message, DeploymentStatus } from '@danclaw/shared';
 
 const statusMeta: Record<DeploymentStatus, { label: string; color: string; dot: string }> = {
@@ -30,10 +30,62 @@ export default function ChatPage() {
   const { data: deploymentsData } = useDeployments();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatWsRef = useRef<ChatWebSocket | null>(null);
 
   const runningDeployments = deploymentsData?.data?.deployments.filter(d => d.status === 'running' || d.status === 'starting') || [];
   const [selectedId, setSelectedId] = useState(runningDeployments[0]?.id || '');
+
+  // Load historical messages when deployment is selected
+  const { data: messagesData, isLoading: messagesLoading, isError: messagesError } = useMessages(selectedId, {
+    enabled: !!selectedId,
+    refetchInterval: false,
+  });
+
+  // Monitor deployment status
+  const { data: deploymentData } = useDeployment(selectedId, {
+    enabled: !!selectedId,
+    refetchInterval: 10000,
+  });
+
+  // Populate messages from API
+  useEffect(() => {
+    if (messagesData?.data?.messages) {
+      setMessages(messagesData.data.messages);
+    }
+  }, [messagesData]);
+
+  // ChatWebSocket for real-time chat
+  useEffect(() => {
+    if (!selectedId) return;
+
+    const chatWs = new ChatWebSocket();
+    chatWsRef.current = chatWs;
+
+    chatWs.onStateChange((state) => {
+      setIsConnected(state === 'connected');
+    });
+
+    chatWs.onMessage((msg) => {
+      const agentMsg: Message = {
+        id: `ws_${Date.now()}`,
+        deployment_id: selectedId,
+        role: 'agent',
+        content: msg.content || '',
+        type: 'message',
+        created_at: msg.timestamp || new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, agentMsg]);
+    });
+
+    chatWs.connect(selectedId);
+
+    return () => {
+      chatWs.disconnect();
+      chatWsRef.current = null;
+    };
+  }, [selectedId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -46,7 +98,7 @@ export default function ChatPage() {
   }, [runningDeployments, selectedId]);
 
   const handleSend = () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !selectedId) return;
     const userMsg: Message = {
       id: `msg_${Date.now()}`,
       deployment_id: selectedId,
@@ -55,21 +107,10 @@ export default function ChatPage() {
       type: 'message',
       created_at: new Date().toISOString(),
     };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput('');
+    setMessages(prev => [...prev, userMsg]);
 
-    // Simulate agent response (will be replaced with real WS)
-    setTimeout(() => {
-      const agentMsg: Message = {
-        id: `msg_${Date.now() + 1}`,
-        deployment_id: selectedId,
-        role: 'agent',
-        content: "I've received your message and am processing it. I'll get back to you shortly.",
-        type: 'response',
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, agentMsg]);
-    }, 1000 + Math.random() * 1500);
+    chatWsRef.current?.send(input);
+    setInput('');
   };
 
   const selectedDeployment = runningDeployments.find(d => d.id === selectedId);
@@ -82,6 +123,7 @@ export default function ChatPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-medium text-white">Chat</h1>
             {selectedDeployment && <StatusBadge status={selectedDeployment.status as DeploymentStatus} />}
+            {isConnected && <span className="text-[10px] text-emerald-500 font-medium">● live</span>}
           </div>
           {selectedDeployment && (
             <p className="text-xs text-zinc-600 mt-0.5">
@@ -113,7 +155,17 @@ export default function ChatPage() {
         <>
           {/* Messages */}
           <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1 scrollbar-thin">
-            {messages.length === 0 ? (
+            {messagesLoading ? (
+              <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <span className="text-4xl mb-3 animate-pulse">💬</span>
+                <p className="text-zinc-500 text-sm">Loading messages...</p>
+              </div>
+            ) : messagesError ? (
+              <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <span className="text-4xl mb-3">⚠️</span>
+                <p className="text-red-400 text-sm">Failed to load messages</p>
+              </div>
+            ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-12">
                 <span className="text-4xl mb-3">💬</span>
                 <p className="text-zinc-500 text-sm">Send a message to start chatting</p>

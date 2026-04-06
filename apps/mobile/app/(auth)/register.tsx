@@ -22,7 +22,7 @@ import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
 import { Colors, Spacing } from '@/constants/theme';
-import { danclawClient } from '@danclaw/api';
+import { danclawClient, configureTokenStorage } from '@danclaw/api';
 import type { RegisterRequest } from '@danclaw/shared';
 
 const TOKEN_KEY = 'danclaw_auth_token';
@@ -30,6 +30,13 @@ const TOKEN_KEY = 'danclaw_auth_token';
 async function saveToken(token: string) {
   await SecureStore.setItemAsync(TOKEN_KEY, token);
 }
+
+// Wire SecureStore to DanClawClient so API calls include the Bearer token
+configureTokenStorage({
+  saveToken,
+  getToken: () => SecureStore.getItemAsync(TOKEN_KEY),
+  clearToken: () => SecureStore.deleteItemAsync(TOKEN_KEY),
+});
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -49,12 +56,7 @@ export default function RegisterScreen() {
       return;
     }
     setLoading(true);
-    const req: RegisterRequest = {
-      email: email.trim(),
-      password: password.trim(),
-      name: name.trim(),
-    };
-    const result = await danclawClient.register(req);
+    const result = await danclawClient.register(email.trim(), password.trim(), name.trim());
     if (result.data) {
       await saveToken(result.data.token);
       router.replace('/(tabs)');

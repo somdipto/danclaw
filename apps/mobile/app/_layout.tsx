@@ -7,6 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { configureTokenStorage } from '@danclaw/api';
 
 const TOKEN_KEY = 'danclaw_auth_token';
 
@@ -26,6 +27,13 @@ const DanClawTheme = {
     notification: Colors.error,
   },
 };
+
+// Configure DanClawClient to use expo-secure-store on mobile
+configureTokenStorage({
+  getToken: () => SecureStore.getItemAsync(TOKEN_KEY),
+  saveToken: (token) => SecureStore.setItemAsync(TOKEN_KEY, token),
+  clearToken: () => SecureStore.deleteItemAsync(TOKEN_KEY),
+});
 
 export default function RootLayout() {
   const [authChecked, setAuthChecked] = useState(false);

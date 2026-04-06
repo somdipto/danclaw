@@ -60,7 +60,7 @@ export default function SettingsScreen() {
         style: 'destructive',
         onPress: async () => {
           await danclawClient.signOut();
-          await SecureStore.deleteAsync(TOKEN_KEY);
+          await SecureStore.deleteItemAsync(TOKEN_KEY);
           router.replace('/(auth)/login');
         },
       },

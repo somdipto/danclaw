@@ -61,8 +61,8 @@ export async function GET(request: NextRequest) {
         name: dbUser?.name || user.profile?.name || '',
         avatar: dbUser?.avatar || user.profile?.avatar_url || '',
         tier: (dbUser?.tier as 'free' | 'pro' | 'elite') || 'free',
-        created_at: dbUser?.created_at || user.createdAt,
-        updated_at: dbUser?.updated_at || user.updatedAt,
+        created_at: dbUser?.created_at || user.createdAt || new Date().toISOString(),
+        updated_at: dbUser?.updated_at || user.updatedAt || new Date().toISOString(),
       },
       token: session.accessToken,
     };

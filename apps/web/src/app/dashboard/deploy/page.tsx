@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import { AI_MODELS, CHANNELS, PRICING_TIERS, REGIONS } from '@danclaw/shared';
 import { useCreateDeployment } from '@danclaw/api';
 import type { Tier, DeployConfig } from '@danclaw/shared';
@@ -37,7 +38,19 @@ export default function DeployPage() {
   });
 
   const createMutation = useCreateDeployment({
-    onSuccess: () => router.push('/dashboard'),
+    onSuccess: (result) => {
+      const deploymentId = result?.data?.deployment?.id;
+      if (deploymentId) {
+        router.push(`/dashboard/deploy/provisioning?id=${deploymentId}`);
+      } else {
+        router.push('/dashboard');
+      }
+    },
+    onError: (err) => {
+      toast.error('Deployment failed', {
+        description: err?.message || 'Something went wrong. Please try again.',
+      });
+    },
   });
 
   const handleDeploy = () => {

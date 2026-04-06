@@ -63,7 +63,7 @@ export async function PATCH(request: NextRequest) {
       return apiError(400, 'No updates provided');
     }
 
-    const result = await databaseApi.update<User>('users', updates, { id: userId });
+    const result = await databaseApi.update<User>('users', { id: userId }, updates);
 
     if (result.error) {
       return apiError(400, result.error.message);

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { danclawClient } from '@danclaw/api';
+import { useRouter, usePathname } from 'next/navigation';
+import { useUserProfile } from '@danclaw/api';
 import type { User } from '@danclaw/shared';
 
 interface AuthUser extends Omit<User, 'openrouter_token'> {}
@@ -18,78 +19,87 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function toAuthUser(u: User): AuthUser {
+  return {
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    avatar: u.avatar,
+    tier: u.tier,
+    created_at: u.created_at,
+    updated_at: u.updated_at,
+  };
+}
+
+const PROTECTED_PATHS = ['/dashboard'];
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { data, refetch, isLoading } = useUserProfile();
+
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingCtx, setIsLoadingCtx] = useState(true);
   const mountedRef = useRef(true);
 
-  const fetchUser = useCallback(async () => {
-    try {
-      const result = await danclawClient.getProfile();
-      if (result.error || !result.data?.user) {
-        if (mountedRef.current) setUser(null);
-        return;
-      }
-      const u = result.data.user;
-      if (mountedRef.current) {
-        setUser({
-          id: u.id,
-          email: u.email,
-          name: u.name,
-          avatar: u.avatar,
-          tier: u.tier,
-          created_at: u.created_at,
-          updated_at: u.updated_at,
-        });
-      }
-    } catch {
+  // Sync user from profile data — do NOT depend on isLoading (it goes true on refetch)
+  useEffect(() => {
+    if (isLoading) return; // skip on loading/refetch to avoid flash of null user
+    if (data?.data?.user) {
+      if (mountedRef.current) setUser(toAuthUser(data.data.user));
+    } else {
       if (mountedRef.current) setUser(null);
     }
-  }, []);
+    if (mountedRef.current) setIsLoadingCtx(false);
+  }, [isLoading, data]);
 
-  const refreshSession = useCallback(async () => {
-    await fetchUser();
-  }, [fetchUser]);
+  // Protect /dashboard routes
+  useEffect(() => {
+    if (!isLoadingCtx && !user && PROTECTED_PATHS.some(p => pathname?.startsWith(p))) {
+      router.push('/');
+    }
+  }, [user, isLoadingCtx, pathname, router]);
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchUser().finally(() => {
-      if (mountedRef.current) setIsLoading(false);
-    });
-
-    const handleFocus = () => {
-      if (mountedRef.current) fetchUser();
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      mountedRef.current = false;
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [fetchUser]);
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const result = await danclawClient.login({ email, password });
+    const { danclawClient, saveToken } = await import('@danclaw/api');
+    const result = await danclawClient.login(email, password);
     if (result.error) return { success: false, error: result.error.message };
-    await fetchUser();
+    if (result.data?.token) {
+      await saveToken(result.data.token);
+    }
+    await refetch();
     return { success: true };
-  }, [fetchUser]);
+  }, [refetch]);
 
   const register = useCallback(async (email: string, password: string, name: string) => {
-    const result = await danclawClient.register({ email, password, name });
+    const { danclawClient } = await import('@danclaw/api');
+    const result = await danclawClient.register(email, password, name);
     if (result.error) return { success: false, error: result.error.message };
     return { success: true };
   }, []);
 
   const logout = useCallback(async () => {
+    const { danclawClient, clearToken } = await import('@danclaw/api');
     await danclawClient.signOut();
+    await clearToken();
     if (mountedRef.current) setUser(null);
-  }, []);
+    router.push('/');
+  }, [router]);
+
+  const refreshSession = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        isLoading,
+        isLoading: isLoadingCtx,
         isAuthenticated: !!user,
         login,
         register,
